@@ -1,0 +1,20 @@
+# ENV FILES
+.env
+.env.*
+
+# DEPENDENCIES
+node_modules/
+
+# BUILDS
+dist/
+build/
+
+# UPLOADS
+uploads/
+
+# LOGS
+*.log
+
+# OS FILES
+.DS_Store
+Thumbs.db
