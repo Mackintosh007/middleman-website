@@ -14,8 +14,6 @@ function CreateProperty() {
   const [price, setPrice] = useState("");
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
-
-  // ✅ NEW: image state
   const [images, setImages] = useState([]);
 
   const [loading, setLoading] = useState(false);
@@ -31,7 +29,6 @@ function CreateProperty() {
     );
   }
 
-  // ✅ NEW: image handler
   const handleImageChange = (e) => {
     setImages([...e.target.files]);
   };
@@ -42,7 +39,6 @@ function CreateProperty() {
     setError("");
 
     try {
-      // 1️⃣ Create property (UNCHANGED)
       const res = await api.post("/properties", {
         property_type: propertyType,
         title,
@@ -53,7 +49,6 @@ function CreateProperty() {
 
       const propertyId = res.data.id;
 
-      // 2️⃣ Upload images (ONLY if selected)
       if (images.length > 0) {
         const formData = new FormData();
         images.forEach((img) =>
@@ -68,7 +63,6 @@ function CreateProperty() {
         });
       }
 
-      // 3️⃣ Continue your normal flow
       navigate(`/add-property-details/${propertyId}`);
     } catch (err) {
       setError(
@@ -94,7 +88,6 @@ function CreateProperty() {
           <p className="text-red-600">{error}</p>
         )}
 
-        {/* LISTING TYPE */}
         <div>
           <label className="block mb-1 font-medium">
             Listing Type
@@ -113,11 +106,14 @@ function CreateProperty() {
             <option value="automobile">Automobile</option>
             <option value="gadget">Gadget</option>
             <option value="equipment">Equipment</option>
-            <option value="others">Others</option>
+            <option value="fashion">Fashion & Wears</option>
+            <option value="furniture">Furniture</option>
+            <option value="building_materials">
+              Building Materials
+            </option>
           </select>
         </div>
 
-        {/* TITLE */}
         <div>
           <label className="block mb-1 font-medium">
             Title
@@ -132,10 +128,9 @@ function CreateProperty() {
           />
         </div>
 
-        {/* LOCATION */}
         <div>
           <label className="block mb-1 font-medium">
-            Location (Omoku / ONELGA)
+            Location
           </label>
           <select
             className="input"
@@ -145,9 +140,7 @@ function CreateProperty() {
             }
             required
           >
-            <option value="">
-              Select a location
-            </option>
+            <option value="">Select a location</option>
             {LOCATIONS.map((loc) => (
               <option key={loc} value={loc}>
                 {loc}
@@ -156,7 +149,6 @@ function CreateProperty() {
           </select>
         </div>
 
-        {/* PRICE */}
         <div>
           <label className="block mb-1 font-medium">
             Price (₦)
@@ -172,7 +164,6 @@ function CreateProperty() {
           />
         </div>
 
-        {/* DESCRIPTION */}
         <div>
           <label className="block mb-1 font-medium">
             Description
@@ -186,7 +177,6 @@ function CreateProperty() {
           />
         </div>
 
-        {/* ✅ NEW: IMAGE UPLOAD */}
         <div>
           <label className="block mb-1 font-medium">
             Listing Images
@@ -197,9 +187,6 @@ function CreateProperty() {
             multiple
             onChange={handleImageChange}
           />
-          <p className="text-sm text-gray-500 mt-1">
-            You can upload multiple images
-          </p>
         </div>
 
         <button

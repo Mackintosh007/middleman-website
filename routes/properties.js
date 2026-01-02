@@ -23,7 +23,16 @@ router.post(
 
       let revenue_type = "commission";
 
-      if (["gadget", "equipment", "others"].includes(property_type)) {
+      // ✅ UPDATED CATEGORIES
+      if (
+        [
+          "gadget",
+          "equipment",
+          "fashion",
+          "furniture",
+          "building_materials"
+        ].includes(property_type)
+      ) {
         revenue_type = "escrow";
       }
 

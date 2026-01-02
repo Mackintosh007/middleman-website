@@ -12,8 +12,11 @@ const CATEGORIES = [
   { label: "Automobile", value: "automobile" },
   { label: "Gadgets", value: "gadget" },
   { label: "Equipment", value: "equipment" },
-  { label: "Others", value: "others" },
+  { label: "Fashion & Wears", value: "fashion" },
+  { label: "Furniture", value: "furniture" },
+  { label: "Building Materials", value: "building_materials" },
 ];
+
 
 function Home() {
   const [listings, setListings] = useState([]);
@@ -78,9 +81,13 @@ function Home() {
       <section className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-6 py-20 text-center">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900">
+            <span className="block text-lg md:text-xl font-bold text-gray-700 mb-3">
+              Omoku and ONELGA Marketplace
+            </span>
+
             Buy, Sell & Rent Safely — <br />
             <span className="text-blue-600">
-              Properties, Cars & Gadgets
+              Properties, Cars , clothings & Gadgets
             </span>
           </h1>
 
