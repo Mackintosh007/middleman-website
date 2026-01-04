@@ -2,12 +2,26 @@ import api from "../api/axios";
 
 function EscrowModal({ property, onClose }) {
   const startEscrow = async () => {
-    await api.post("/orders", {
-      property_id: property.id,
-      amount: property.price
-    });
-    alert("Escrow order created. Await admin confirmation.");
-    onClose();
+    try {
+      // 1️⃣ Create escrow order
+      const orderRes = await api.post("/orders", {
+        property_id: property.id,
+      });
+
+      const order = orderRes.data;
+
+      // 2️⃣ Initiate Paystack payment
+      const payRes = await api.post(
+        `/orders/${order.id}/pay`
+      );
+
+      // 3️⃣ Redirect to Paystack
+      window.location.href =
+        payRes.data.authorization_url;
+    } catch (err) {
+      console.error(err);
+      alert("Unable to start escrow payment");
+    }
   };
 
   return (
@@ -17,7 +31,9 @@ function EscrowModal({ property, onClose }) {
           Secure Escrow Checkout
         </h2>
 
-        <p className="mb-2 font-semibold">{property.title}</p>
+        <p className="mb-2 font-semibold">
+          {property.title}
+        </p>
         <p className="mb-4">
           ₦{Number(property.price).toLocaleString()}
         </p>
