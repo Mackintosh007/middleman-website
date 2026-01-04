@@ -10,11 +10,13 @@ const DELIVERY_FEE = 1300;
 
 /**
  * CREATE ESCROW ORDER
+ * - Any authenticated user can buy (except owner)
+ * - Uses DB-allowed status
  */
 router.post(
   "/",
   auth,
-  roles("customer", "agent", "individual_seller"),
+  roles("customer", "agent", "individual_seller", "admin"),
   async (req, res) => {
     try {
       const { property_id } = req.body;
@@ -32,21 +34,21 @@ router.post(
       const property = propRes.rows[0];
 
       if (property.revenue_type !== "escrow") {
-        return res
-          .status(403)
-          .json({ error: "This listing does not support escrow" });
+        return res.status(403).json({
+          error: "This listing does not support escrow",
+        });
       }
 
       if (property.status !== "active") {
-        return res
-          .status(400)
-          .json({ error: "Listing is not active" });
+        return res.status(400).json({
+          error: "Listing is not active",
+        });
       }
 
       if (property.owner_id === req.user.id) {
-        return res
-          .status(403)
-          .json({ error: "You cannot buy your own listing" });
+        return res.status(403).json({
+          error: "You cannot buy your own listing",
+        });
       }
 
       const platformFee = Number(
@@ -56,10 +58,11 @@ router.post(
       const deliveryFee = DELIVERY_FEE;
       const totalAmount = property.price + deliveryFee;
 
+      // ✅ IMPORTANT: use DB-allowed status
       const orderRes = await pool.query(
         `INSERT INTO orders
          (property_id, buyer_id, seller_id, amount, platform_fee, delivery_fee, total_amount, status)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,'escrow_pending')
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'pending')
          RETURNING *`,
         [
           property.id,
@@ -72,6 +75,7 @@ router.post(
         ]
       );
 
+      // 🔒 Lock listing
       await pool.query(
         "UPDATE properties SET status = 'pending' WHERE id = $1",
         [property.id]
@@ -79,8 +83,8 @@ router.post(
 
       res.status(201).json(orderRes.rows[0]);
     } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: err.message });
+      console.error("ESCROW CREATE ERROR:", err);
+      res.status(500).json({ error: "Unable to start escrow payment" });
     }
   }
 );
@@ -88,7 +92,7 @@ router.post(
 /**
  * 🔓 COMPLETE ESCROW (ADMIN ONLY)
  * - Releases escrow
- * - Credits seller wallet ✅
+ * - Credits seller wallet
  * - Sends confirmation emails
  */
 router.patch(
@@ -128,37 +132,28 @@ router.patch(
 
       const order = orderRes.rows[0];
 
-      if (order.status !== "escrow_pending") {
+      if (order.status !== "pending") {
         return res.status(400).json({ error: "Escrow is not pending" });
       }
 
-      // ✅ Calculate seller payout
       const sellerPayout =
         Number(order.amount) - Number(order.platform_fee);
 
-      // ✅ Update order status
       await pool.query(
         "UPDATE orders SET status = 'completed' WHERE id = $1",
         [id]
       );
 
-      // ✅ Mark property as sold
       await pool.query(
         "UPDATE properties SET status = 'sold', sold_date = NOW() WHERE id = $1",
         [order.property_id]
       );
 
-      // ✅ CREDIT SELLER WALLET (NEW)
       await pool.query(
-        `
-        UPDATE wallets
-        SET balance = balance + $1
-        WHERE user_id = $2
-        `,
+        "UPDATE wallets SET balance = balance + $1 WHERE user_id = $2",
         [sellerPayout, order.seller_id]
       );
 
-      // 📧 EMAIL — SELLER
       await sendEmail({
         to: order.seller_email,
         subject: "Escrow Released – Funds Available",
@@ -166,18 +161,17 @@ router.patch(
           <p>Hello ${order.seller_name},</p>
           <p>Your escrow payment for <strong>${order.title}</strong> has been released.</p>
           <p><strong>Amount credited:</strong> ₦${sellerPayout.toLocaleString()}</p>
-          <p>The funds are now available in your Middleman wallet.</p>
+          <p>Funds are now available in your Middleman wallet.</p>
           <p>— Middleman Team</p>
         `,
       });
 
-      // 📧 EMAIL — BUYER
       await sendEmail({
         to: order.buyer_email,
         subject: "Escrow Completed Successfully",
         html: `
           <p>Hello ${order.buyer_name},</p>
-          <p>Your escrow transaction for <strong>${order.title}</strong> has been completed successfully.</p>
+          <p>Your escrow transaction for <strong>${order.title}</strong> has been completed.</p>
           <p><strong>Amount Paid:</strong> ₦${Number(order.amount).toLocaleString()}</p>
           <p>Thank you for trusting Middleman.</p>
           <p>— Middleman Team</p>
@@ -189,7 +183,7 @@ router.patch(
         message: "Escrow completed & seller credited successfully",
       });
     } catch (err) {
-      console.error(err);
+      console.error("ESCROW COMPLETE ERROR:", err);
       res.status(500).json({ error: err.message });
     }
   }
