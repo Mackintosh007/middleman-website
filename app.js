@@ -39,6 +39,8 @@ app.use("/api/wallet", require("./routes/wallet"));
 app.use("/api/withdrawals", require("./routes/withdrawals"));
 app.use("/api/bank", require("./routes/bankVerification"));
 app.use("/api/kyc", require("./routes/kyc"));
+app.use("/api/webhook", require("./routes/paystackWebhook"));
+
 
 // Admin
 app.use("/api/admin", require("./routes/admin"));

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import api from "../api/axios";
 import PropertyCard from "../components/PropertyCard";
 import PageWrapper from "../components/PageWrapper";
@@ -17,8 +18,9 @@ const CATEGORIES = [
   { label: "Building Materials", value: "building_materials" },
 ];
 
-
 function Home() {
+  const locationObj = useLocation();
+
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -26,13 +28,36 @@ function Home() {
   const [category, setCategory] = useState("all");
   const [location, setLocation] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
+  const [keyword, setKeyword] = useState("");
 
+  /* ===============================
+     READ URL QUERY PARAMS (SAFE)
+  =============================== */
+  useEffect(() => {
+    const params = new URLSearchParams(locationObj.search);
+
+    const q = params.get("q");
+    const cat = params.get("category");
+
+    if (q) {
+      setKeyword(q.toLowerCase());
+    } else {
+      setKeyword("");
+    }
+
+    if (cat) {
+      setCategory(cat);
+    }
+  }, [locationObj.search]);
+
+  /* ===============================
+     FETCH LISTINGS (UNCHANGED)
+  =============================== */
   useEffect(() => {
     const fetchListings = async () => {
       try {
         const res = await api.get("/properties");
 
-        // 🔒 DEFENSIVE NORMALIZATION
         if (Array.isArray(res.data)) {
           setListings(res.data);
         } else if (Array.isArray(res.data?.results)) {
@@ -51,6 +76,9 @@ function Home() {
     fetchListings();
   }, []);
 
+  /* ===============================
+     FILTER LOGIC (EXTENDED, SAFE)
+  =============================== */
   const filteredListings = listings.filter((item) => {
     if (!item) return false;
 
@@ -70,6 +98,20 @@ function Home() {
       Number(item.price) > Number(maxPrice)
     ) {
       return false;
+    }
+
+    // 🔍 KEYWORD SEARCH (NEW)
+    if (keyword) {
+      const haystack = `
+        ${item.title || ""}
+        ${item.description || ""}
+        ${item.location || ""}
+        ${item.property_type || ""}
+      `.toLowerCase();
+
+      if (!haystack.includes(keyword)) {
+        return false;
+      }
     }
 
     return true;
@@ -97,13 +139,12 @@ function Home() {
             when needed.
           </p>
 
-          {/* SEARCH BAR */}
+          {/* SEARCH BAR (UNCHANGED UI) */}
           <div className="mt-10 max-w-3xl mx-auto bg-gray-50 p-4 rounded-xl border">
             <form
               onSubmit={(e) => e.preventDefault()}
               className="grid grid-cols-1 md:grid-cols-4 gap-4"
             >
-              {/* LOCATION */}
               <select
                 className="w-full px-3 py-2 border rounded-lg bg-white cursor-pointer"
                 value={location}
@@ -119,7 +160,6 @@ function Home() {
                 ))}
               </select>
 
-              {/* CATEGORY */}
               <select
                 className="w-full px-3 py-2 border rounded-lg bg-white cursor-pointer"
                 value={category}
@@ -134,7 +174,6 @@ function Home() {
                 ))}
               </select>
 
-              {/* MAX PRICE */}
               <input
                 type="number"
                 placeholder="Max price"
