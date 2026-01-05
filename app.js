@@ -2,6 +2,12 @@ const express = require("express");
 const app = express();
 require("dotenv").config();
 const cors = require("cors");
+const cron = require("node-cron");
+const autoReleaseEscrow = require("./jobs/autoReleaseEscrow");
+
+// ⏱ Runs every 15 minutes
+cron.schedule("*/15 * * * *", autoReleaseEscrow);
+
 
 app.use(cors());
 app.use(express.json());
