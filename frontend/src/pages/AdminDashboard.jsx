@@ -8,7 +8,6 @@ function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [listings, setListings] = useState([]);
 
-  // ✅ WITHDRAWALS (ADDED)
   const [withdrawals, setWithdrawals] = useState([]);
   const [loadingWithdrawals, setLoadingWithdrawals] = useState(true);
 
@@ -26,12 +25,16 @@ function AdminDashboard() {
   }, []);
 
   /* ===============================
-     LOAD ESCROW ORDERS
+     LOAD ESCROW ORDERS (ADMIN)
   =============================== */
   useEffect(() => {
     api
-      .get("/orders/admin/pending")
-      .then(res => setEscrowOrders(res.data))
+      .get("/admin/orders")
+      .then(res =>
+        setEscrowOrders(
+          res.data.filter(o => o.status === "funds_held")
+        )
+      )
       .catch(() => {});
   }, []);
 
@@ -40,7 +43,7 @@ function AdminDashboard() {
   =============================== */
   useEffect(() => {
     api
-      .get("/admin/users")
+      .get("/users")
       .then(res => setUsers(res.data))
       .finally(() => setLoadingUsers(false));
   }, []);
@@ -50,17 +53,17 @@ function AdminDashboard() {
   =============================== */
   useEffect(() => {
     api
-      .get("/admin/properties")
+      .get("/properties")
       .then(res => setListings(res.data))
       .finally(() => setLoadingListings(false));
   }, []);
 
   /* ===============================
-     LOAD WITHDRAWALS (ADDED)
+     LOAD WITHDRAWALS
   =============================== */
   useEffect(() => {
     api
-      .get("/admin/withdrawals?status=pending")
+      .get("/admin/withdrawals")
       .then(res => setWithdrawals(res.data))
       .finally(() => setLoadingWithdrawals(false));
   }, []);
@@ -81,8 +84,8 @@ function AdminDashboard() {
   /* ===============================
      ESCROW ACTIONS
   =============================== */
-  const updateEscrow = async (id, status) => {
-    await api.patch(`/orders/${id}/status`, { status });
+  const releaseEscrow = async id => {
+    await api.post(`/admin/orders/${id}/release`);
     setEscrowOrders(o => o.filter(x => x.id !== id));
   };
 
@@ -91,7 +94,7 @@ function AdminDashboard() {
   =============================== */
   const toggleVerification = async (id, verified) => {
     const res = await api.patch(`/admin/users/${id}/verify`, {
-      verified: !verified
+      verified: !verified,
     });
 
     setUsers(users =>
@@ -106,8 +109,9 @@ function AdminDashboard() {
   =============================== */
   const toggleListingStatus = async (id, status) => {
     const newStatus = status === "active" ? "inactive" : "active";
+
     await api.patch(`/admin/properties/${id}/status`, {
-      status: newStatus
+      status: newStatus,
     });
 
     setListings(listings =>
@@ -118,15 +122,10 @@ function AdminDashboard() {
   };
 
   /* ===============================
-     WITHDRAWAL ACTIONS (ADDED)
+     WITHDRAWAL ACTION
   =============================== */
-  const approveWithdrawal = async (id) => {
-    await api.patch(`/admin/withdrawals/${id}/approve`);
-    setWithdrawals(w => w.filter(x => x.id !== id));
-  };
-
-  const rejectWithdrawal = async (id) => {
-    await api.patch(`/admin/withdrawals/${id}/reject`);
+  const payWithdrawal = async id => {
+    await api.post(`/admin/withdrawals/${id}/pay`);
     setWithdrawals(w => w.filter(x => x.id !== id));
   };
 
@@ -136,33 +135,7 @@ function AdminDashboard() {
         Admin Dashboard
       </h1>
 
-      {/* QUICK ACTIONS */}
-      <div className="mb-10 flex gap-4 flex-wrap">
-        <a
-          href="/admin/withdrawals"
-          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-        >
-          💸 Withdrawal Requests
-        </a>
-
-        <a
-          href="/admin/revenue"
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          📊 Platform Revenue
-        </a>
-
-        <a
-          href="/admin/orders"
-          className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-        >
-          📦 Escrow Orders
-        </a>
-      </div>
-
-      {/* ===============================
-          USERS
-      =============================== */}
+      {/* USERS */}
       <section className="mb-14">
         <h2 className="text-xl font-semibold mb-4">
           User Verification
@@ -171,55 +144,51 @@ function AdminDashboard() {
         {loadingUsers ? (
           <p>Loading users...</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border text-sm">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="p-2 border">Name</th>
-                  <th className="p-2 border">Email</th>
-                  <th className="p-2 border">Role</th>
-                  <th className="p-2 border">Verified</th>
-                  <th className="p-2 border">Action</th>
+          <table className="w-full border text-sm">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="p-2 border">Name</th>
+                <th className="p-2 border">Email</th>
+                <th className="p-2 border">Role</th>
+                <th className="p-2 border">Verified</th>
+                <th className="p-2 border">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map(u => (
+                <tr key={u.id} className="text-center">
+                  <td className="p-2 border">
+                    {u.first_name} {u.last_name}
+                  </td>
+                  <td className="p-2 border">{u.email}</td>
+                  <td className="p-2 border capitalize">
+                    {u.role.replace("_", " ")}
+                  </td>
+                  <td className="p-2 border">
+                    {u.verified ? "✅ Yes" : "❌ No"}
+                  </td>
+                  <td className="p-2 border">
+                    <button
+                      onClick={() =>
+                        toggleVerification(u.id, u.verified)
+                      }
+                      className={`px-3 py-1 rounded text-white ${
+                        u.verified
+                          ? "bg-red-600"
+                          : "bg-green-600"
+                      }`}
+                    >
+                      {u.verified ? "Unverify" : "Verify"}
+                    </button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {users.map(u => (
-                  <tr key={u.id} className="text-center">
-                    <td className="p-2 border">
-                      {u.first_name} {u.last_name}
-                    </td>
-                    <td className="p-2 border">{u.email}</td>
-                    <td className="p-2 border capitalize">
-                      {u.role.replace("_", " ")}
-                    </td>
-                    <td className="p-2 border">
-                      {u.verified ? "✅ Yes" : "❌ No"}
-                    </td>
-                    <td className="p-2 border">
-                      <button
-                        onClick={() =>
-                          toggleVerification(u.id, u.verified)
-                        }
-                        className={`px-3 py-1 rounded text-white ${
-                          u.verified
-                            ? "bg-red-600"
-                            : "bg-green-600"
-                        }`}
-                      >
-                        {u.verified ? "Unverify" : "Verify"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         )}
       </section>
 
-      {/* ===============================
-          SELLER REQUESTS
-      =============================== */}
+      {/* SELLER REQUESTS */}
       <section className="mb-14">
         <h2 className="text-xl font-semibold mb-4">
           Seller Requests
@@ -260,9 +229,7 @@ function AdminDashboard() {
         )}
       </section>
 
-      {/* ===============================
-          WITHDRAWAL REQUESTS (ADDED)
-      =============================== */}
+      {/* WITHDRAWALS */}
       <section className="mb-14">
         <h2 className="text-xl font-semibold mb-4">
           Withdrawal Requests
@@ -271,88 +238,28 @@ function AdminDashboard() {
         {loadingWithdrawals ? (
           <p>Loading withdrawals...</p>
         ) : withdrawals.length === 0 ? (
-          <p>No pending withdrawal requests.</p>
+          <p>No pending withdrawals.</p>
         ) : (
           withdrawals.map(w => (
             <div
               key={w.id}
               className="border p-4 mb-4 rounded bg-white"
             >
-              <p className="font-semibold">
-                {w.email}
-              </p>
-              <p className="text-sm">
-                Amount: ₦{Number(w.amount).toLocaleString()}
-              </p>
-              <p className="text-sm text-gray-600">
-                {w.bank_name} • {w.account_number}
-              </p>
-
-              <div className="mt-3 flex gap-3">
-                <button
-                  onClick={() => approveWithdrawal(w.id)}
-                  className="bg-green-600 text-white px-3 py-1 rounded"
-                >
-                  Approve
-                </button>
-                <button
-                  onClick={() => rejectWithdrawal(w.id)}
-                  className="bg-red-600 text-white px-3 py-1 rounded"
-                >
-                  Reject
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </section>
-
-      {/* ===============================
-          LISTINGS MODERATION
-      =============================== */}
-      <section className="mb-14">
-        <h2 className="text-xl font-semibold mb-4">
-          Listings Moderation
-        </h2>
-
-        {loadingListings ? (
-          <p>Loading listings...</p>
-        ) : listings.length === 0 ? (
-          <p>No listings found.</p>
-        ) : (
-          listings.map(l => (
-            <div
-              key={l.id}
-              className="border p-4 mb-4 rounded bg-white"
-            >
-              <p className="font-semibold">{l.title}</p>
-              <p className="text-sm text-gray-600">
-                {l.property_type} — ₦
-                {Number(l.price).toLocaleString()}
-              </p>
+              <p className="font-semibold">{w.email}</p>
+              <p>₦{Number(w.amount).toLocaleString()}</p>
 
               <button
-                onClick={() =>
-                  toggleListingStatus(l.id, l.status)
-                }
-                className={`mt-3 px-3 py-1 rounded text-white ${
-                  l.status === "active"
-                    ? "bg-red-600"
-                    : "bg-green-600"
-                }`}
+                onClick={() => payWithdrawal(w.id)}
+                className="mt-3 bg-green-600 text-white px-3 py-1 rounded"
               >
-                {l.status === "active"
-                  ? "Deactivate"
-                  : "Activate"}
+                Pay
               </button>
             </div>
           ))
         )}
       </section>
 
-      {/* ===============================
-          ESCROW ORDERS
-      =============================== */}
+      {/* ESCROW ORDERS */}
       <section>
         <h2 className="text-xl font-semibold mb-4">
           Pending Escrow Orders
@@ -366,32 +273,15 @@ function AdminDashboard() {
               key={o.id}
               className="border p-4 mb-4 rounded bg-white"
             >
-              <p className="font-semibold">{o.title}</p>
-              <p className="text-sm">
-                Buyer: {o.buyer_email}
-              </p>
-              <p className="text-sm">
-                Amount: ₦{Number(o.amount).toLocaleString()}
-              </p>
+              <p className="font-semibold">Order #{o.id}</p>
+              <p>₦{Number(o.amount).toLocaleString()}</p>
 
-              <div className="mt-3 flex gap-3">
-                <button
-                  onClick={() =>
-                    updateEscrow(o.id, "completed")
-                  }
-                  className="bg-green-600 text-white px-3 py-1 rounded"
-                >
-                  Release Escrow
-                </button>
-                <button
-                  onClick={() =>
-                    updateEscrow(o.id, "cancelled")
-                  }
-                  className="bg-red-600 text-white px-3 py-1 rounded"
-                >
-                  Cancel
-                </button>
-              </div>
+              <button
+                onClick={() => releaseEscrow(o.id)}
+                className="mt-3 bg-green-600 text-white px-3 py-1 rounded"
+              >
+                Release Escrow
+              </button>
             </div>
           ))
         )}
