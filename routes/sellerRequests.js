@@ -34,6 +34,7 @@ router.post("/", auth, async (req, res) => {
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
+    console.error("SELLER REQUEST CREATE ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -42,77 +43,120 @@ router.post("/", auth, async (req, res) => {
  * ADMIN: View pending requests
  */
 router.get("/", auth, roles("admin"), async (req, res) => {
-  const result = await pool.query(
-    `SELECT sr.*, u.email, u.first_name, u.last_name
-     FROM seller_requests sr
-     JOIN users u ON u.id = sr.user_id
-     WHERE sr.status = 'pending'
-     ORDER BY sr.created_at DESC`
-  );
+  try {
+    const result = await pool.query(
+      `SELECT sr.*, u.email, u.first_name, u.last_name
+       FROM seller_requests sr
+       JOIN users u ON u.id = sr.user_id
+       WHERE sr.status = 'pending'
+       ORDER BY sr.created_at DESC`
+    );
 
-  res.json(result.rows);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("SELLER REQUEST LOAD ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 /**
- * ADMIN: CORE STATUS HANDLER
+ * ===============================
+ * ADMIN: APPROVE REQUEST ✅ FIXED
+ * ===============================
  */
-router.patch("/:id", auth, roles("admin"), async (req, res) => {
-  const { status } = req.body;
+router.patch(
+  "/:id/approve",
+  auth,
+  roles("admin"),
+  async (req, res) => {
+    const client = await pool.connect();
 
-  if (!["approved", "rejected"].includes(status)) {
-    return res.status(400).json({ error: "Invalid status" });
-  }
+    try {
+      const requestId = req.params.id;
 
-  const client = await pool.connect();
+      await client.query("BEGIN");
 
-  try {
-    await client.query("BEGIN");
+      const reqRes = await client.query(
+        `SELECT * FROM seller_requests
+         WHERE id = $1 AND status = 'pending'
+         FOR UPDATE`,
+        [requestId]
+      );
 
-    const reqRes = await client.query(
-      "SELECT * FROM seller_requests WHERE id = $1 FOR UPDATE",
-      [req.params.id]
-    );
+      if (!reqRes.rows.length) {
+        throw new Error("Request not found or already processed");
+      }
 
-    if (!reqRes.rows.length) {
-      throw new Error("Request not found");
-    }
+      const request = reqRes.rows[0];
 
-    const request = reqRes.rows[0];
-
-    await client.query(
-      "UPDATE seller_requests SET status = $1 WHERE id = $2",
-      [status, req.params.id]
-    );
-
-    if (status === "approved") {
       await client.query(
-        "UPDATE users SET role = $1 WHERE id = $2",
+        `UPDATE seller_requests
+         SET status = 'approved'
+         WHERE id = $1`,
+        [requestId]
+      );
+
+      await client.query(
+        `UPDATE users
+         SET role = $1
+         WHERE id = $2`,
         [request.requested_role, request.user_id]
       );
+
+      // create agent record if needed
+      if (request.requested_role === "agent") {
+        await client.query(
+          `INSERT INTO agents (user_id, verified)
+           VALUES ($1, true)
+           ON CONFLICT (user_id) DO NOTHING`,
+          [request.user_id]
+        );
+      }
+
+      await client.query("COMMIT");
+
+      res.json({ success: true });
+
+    } catch (err) {
+      await client.query("ROLLBACK");
+      console.error("SELLER REQUEST APPROVE ERROR:", err);
+      res.status(500).json({ error: err.message });
+    } finally {
+      client.release();
     }
-
-    await client.query("COMMIT");
-    res.json({ success: true });
-
-  } catch (err) {
-    await client.query("ROLLBACK");
-    res.status(500).json({ error: err.message });
-  } finally {
-    client.release();
   }
-});
+);
 
 /**
- * ADMIN: ALIAS ROUTES (FRONTEND SAFE)
+ * ===============================
+ * ADMIN: REJECT REQUEST ✅ FIXED
+ * ===============================
  */
-router.patch("/:id/approve", auth, roles("admin"), (req, res) => {
-  req.body.status = "approved";
-  router.handle(req, res);
-});
+router.patch(
+  "/:id/reject",
+  auth,
+  roles("admin"),
+  async (req, res) => {
+    try {
+      const result = await pool.query(
+        `UPDATE seller_requests
+         SET status = 'rejected'
+         WHERE id = $1 AND status = 'pending'
+         RETURNING id`,
+        [req.params.id]
+      );
 
-router.patch("/:id/reject", auth, roles("admin"), (req, res) => {
-  req.body.status = "rejected";
-  router.handle(req, res);
-});
+      if (!result.rows.length) {
+        return res.status(400).json({ error: "Invalid request" });
+      }
+
+      res.json({ success: true });
+
+    } catch (err) {
+      console.error("SELLER REQUEST REJECT ERROR:", err);
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
 
 module.exports = router;
