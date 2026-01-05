@@ -7,25 +7,28 @@ function AdminDashboard() {
   const [escrowOrders, setEscrowOrders] = useState([]);
   const [users, setUsers] = useState([]);
   const [listings, setListings] = useState([]);
-
   const [withdrawals, setWithdrawals] = useState([]);
-  const [loadingWithdrawals, setLoadingWithdrawals] = useState(true);
 
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [loadingListings, setLoadingListings] = useState(true);
+  const [loadingWithdrawals, setLoadingWithdrawals] = useState(true);
 
   /* ===============================
      LOAD SELLER REQUESTS
+     GET /api/seller-requests
   =============================== */
   useEffect(() => {
     api
-      .get("/admin/seller-requests")
-      .then(res => setSellerRequests(res.data))
+      .get("/seller-requests")
+      .then(res => setSellerRequests(
+        res.data.filter(r => r.status === "pending")
+      ))
       .catch(() => {});
   }, []);
 
   /* ===============================
-     LOAD ESCROW ORDERS (ADMIN)
+     LOAD ESCROW ORDERS
+     GET /api/admin/orders
   =============================== */
   useEffect(() => {
     api
@@ -40,6 +43,7 @@ function AdminDashboard() {
 
   /* ===============================
      LOAD USERS
+     GET /api/users
   =============================== */
   useEffect(() => {
     api
@@ -50,6 +54,7 @@ function AdminDashboard() {
 
   /* ===============================
      LOAD LISTINGS
+     GET /api/properties
   =============================== */
   useEffect(() => {
     api
@@ -60,6 +65,7 @@ function AdminDashboard() {
 
   /* ===============================
      LOAD WITHDRAWALS
+     GET /api/admin/withdrawals
   =============================== */
   useEffect(() => {
     api
@@ -72,17 +78,18 @@ function AdminDashboard() {
      SELLER REQUEST ACTIONS
   =============================== */
   const approveRequest = async id => {
-    await api.patch(`/admin/seller-requests/${id}/approve`);
+    await api.patch(`/seller-requests/${id}/approve`);
     setSellerRequests(r => r.filter(x => x.id !== id));
   };
 
   const rejectRequest = async id => {
-    await api.patch(`/admin/seller-requests/${id}/reject`);
+    await api.patch(`/seller-requests/${id}/reject`);
     setSellerRequests(r => r.filter(x => x.id !== id));
   };
 
   /* ===============================
-     ESCROW ACTIONS
+     ESCROW ACTION
+     POST /api/admin/orders/:id/release
   =============================== */
   const releaseEscrow = async id => {
     await api.post(`/admin/orders/${id}/release`);
@@ -91,6 +98,8 @@ function AdminDashboard() {
 
   /* ===============================
      USER VERIFICATION
+     PATCH /api/admin/users/:id/verify
+     (Assumes this exists as you used it before)
   =============================== */
   const toggleVerification = async (id, verified) => {
     const res = await api.patch(`/admin/users/${id}/verify`, {
@@ -106,10 +115,10 @@ function AdminDashboard() {
 
   /* ===============================
      LISTING STATUS
+     PATCH /api/admin/properties/:id/status
   =============================== */
   const toggleListingStatus = async (id, status) => {
     const newStatus = status === "active" ? "inactive" : "active";
-
     await api.patch(`/admin/properties/${id}/status`, {
       status: newStatus,
     });
@@ -123,8 +132,9 @@ function AdminDashboard() {
 
   /* ===============================
      WITHDRAWAL ACTION
+     POST /api/admin/withdrawals/:id/pay
   =============================== */
-  const payWithdrawal = async id => {
+  const approveWithdrawal = async id => {
     await api.post(`/admin/withdrawals/${id}/pay`);
     setWithdrawals(w => w.filter(x => x.id !== id));
   };
@@ -135,7 +145,9 @@ function AdminDashboard() {
         Admin Dashboard
       </h1>
 
-      {/* USERS */}
+      {/* ===============================
+          USERS
+      =============================== */}
       <section className="mb-14">
         <h2 className="text-xl font-semibold mb-4">
           User Verification
@@ -144,51 +156,55 @@ function AdminDashboard() {
         {loadingUsers ? (
           <p>Loading users...</p>
         ) : (
-          <table className="w-full border text-sm">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="p-2 border">Name</th>
-                <th className="p-2 border">Email</th>
-                <th className="p-2 border">Role</th>
-                <th className="p-2 border">Verified</th>
-                <th className="p-2 border">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map(u => (
-                <tr key={u.id} className="text-center">
-                  <td className="p-2 border">
-                    {u.first_name} {u.last_name}
-                  </td>
-                  <td className="p-2 border">{u.email}</td>
-                  <td className="p-2 border capitalize">
-                    {u.role.replace("_", " ")}
-                  </td>
-                  <td className="p-2 border">
-                    {u.verified ? "✅ Yes" : "❌ No"}
-                  </td>
-                  <td className="p-2 border">
-                    <button
-                      onClick={() =>
-                        toggleVerification(u.id, u.verified)
-                      }
-                      className={`px-3 py-1 rounded text-white ${
-                        u.verified
-                          ? "bg-red-600"
-                          : "bg-green-600"
-                      }`}
-                    >
-                      {u.verified ? "Unverify" : "Verify"}
-                    </button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full border text-sm">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="p-2 border">Name</th>
+                  <th className="p-2 border">Email</th>
+                  <th className="p-2 border">Role</th>
+                  <th className="p-2 border">Verified</th>
+                  <th className="p-2 border">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {users.map(u => (
+                  <tr key={u.id} className="text-center">
+                    <td className="p-2 border">
+                      {u.first_name} {u.last_name}
+                    </td>
+                    <td className="p-2 border">{u.email}</td>
+                    <td className="p-2 border capitalize">
+                      {u.role.replace("_", " ")}
+                    </td>
+                    <td className="p-2 border">
+                      {u.verified ? "✅ Yes" : "❌ No"}
+                    </td>
+                    <td className="p-2 border">
+                      <button
+                        onClick={() =>
+                          toggleVerification(u.id, u.verified)
+                        }
+                        className={`px-3 py-1 rounded text-white ${
+                          u.verified
+                            ? "bg-red-600"
+                            : "bg-green-600"
+                        }`}
+                      >
+                        {u.verified ? "Unverify" : "Verify"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
-      {/* SELLER REQUESTS */}
+      {/* ===============================
+          SELLER REQUESTS
+      =============================== */}
       <section className="mb-14">
         <h2 className="text-xl font-semibold mb-4">
           Seller Requests
@@ -229,7 +245,9 @@ function AdminDashboard() {
         )}
       </section>
 
-      {/* WITHDRAWALS */}
+      {/* ===============================
+          WITHDRAWALS
+      =============================== */}
       <section className="mb-14">
         <h2 className="text-xl font-semibold mb-4">
           Withdrawal Requests
@@ -245,21 +263,28 @@ function AdminDashboard() {
               key={w.id}
               className="border p-4 mb-4 rounded bg-white"
             >
-              <p className="font-semibold">{w.email}</p>
-              <p>₦{Number(w.amount).toLocaleString()}</p>
+              <p className="font-semibold">{w.account_name}</p>
+              <p className="text-sm">
+                Amount: ₦{Number(w.amount).toLocaleString()}
+              </p>
+              <p className="text-sm text-gray-600">
+                {w.bank_name} • {w.account_number}
+              </p>
 
               <button
-                onClick={() => payWithdrawal(w.id)}
+                onClick={() => approveWithdrawal(w.id)}
                 className="mt-3 bg-green-600 text-white px-3 py-1 rounded"
               >
-                Pay
+                Pay Withdrawal
               </button>
             </div>
           ))
         )}
       </section>
 
-      {/* ESCROW ORDERS */}
+      {/* ===============================
+          ESCROW ORDERS
+      =============================== */}
       <section>
         <h2 className="text-xl font-semibold mb-4">
           Pending Escrow Orders
@@ -273,8 +298,10 @@ function AdminDashboard() {
               key={o.id}
               className="border p-4 mb-4 rounded bg-white"
             >
-              <p className="font-semibold">Order #{o.id}</p>
-              <p>₦{Number(o.amount).toLocaleString()}</p>
+              <p className="font-semibold">{o.title}</p>
+              <p className="text-sm">
+                Amount: ₦{Number(o.amount).toLocaleString()}
+              </p>
 
               <button
                 onClick={() => releaseEscrow(o.id)}

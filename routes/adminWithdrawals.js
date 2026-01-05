@@ -6,29 +6,40 @@ const roles = require("../middleware/roles");
 const axios = require("axios");
 
 /**
- * ADMIN: View pending withdrawals
+ * ===============================
+ * ADMIN: VIEW PENDING WITHDRAWALS
+ * ===============================
+ * GET /api/admin/withdrawals
  */
 router.get(
-  "/withdrawals",
+  "/",
   auth,
   roles("admin"),
   async (req, res) => {
-    const result = await pool.query(
-      "SELECT * FROM withdrawals WHERE status = 'pending'"
-    );
-    res.json(result.rows);
+    try {
+      const result = await pool.query(
+        "SELECT * FROM withdrawals WHERE status = 'pending' ORDER BY created_at DESC"
+      );
+      res.json(result.rows);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   }
 );
 
 /**
- * ADMIN: Approve & Pay withdrawal
+ * ===============================
+ * ADMIN: APPROVE & PAY WITHDRAWAL
+ * ===============================
+ * POST /api/admin/withdrawals/:id/pay
  */
 router.post(
-  "/withdrawals/:id/pay",
+  "/:id/pay",
   auth,
   roles("admin"),
   async (req, res) => {
     const client = await pool.connect();
+
     try {
       await client.query("BEGIN");
 
@@ -52,41 +63,50 @@ router.post(
         "https://api.paystack.co/transfer",
         {
           source: "balance",
-          amount: Math.round(w.amount * 100),
+          amount: Math.round(Number(w.amount) * 100),
           recipient: {
             type: "nuban",
             name: w.account_name,
             account_number: w.account_number,
-            bank_code: "058", // example: GTBank
-            currency: "NGN"
-          }
+            bank_code: w.bank_code || "058", // fallback GTBank
+            currency: "NGN",
+          },
         },
         {
           headers: {
             Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+            "Content-Type": "application/json",
           },
         }
       );
 
       // Deduct wallet balance
       await client.query(
-        `UPDATE wallets
-         SET balance = balance - $1
-         WHERE user_id = $2`,
+        `
+        UPDATE wallets
+        SET balance = balance - $1
+        WHERE user_id = $2
+        `,
         [w.amount, w.user_id]
       );
 
-      // Mark withdrawal paid
+      // Mark withdrawal as paid
       await client.query(
-        `UPDATE withdrawals
-         SET status = 'paid',
-             processed_at = NOW()
-         WHERE id = $1`,
+        `
+        UPDATE withdrawals
+        SET status = 'paid',
+            processed_at = NOW()
+        WHERE id = $1
+        `,
         [w.id]
       );
 
       await client.query("COMMIT");
-      res.json({ message: "Withdrawal paid successfully" });
+
+      res.json({
+        success: true,
+        message: "Withdrawal paid successfully",
+      });
 
     } catch (err) {
       await client.query("ROLLBACK");
