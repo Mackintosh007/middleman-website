@@ -15,6 +15,11 @@ import SellerProfile from "./pages/SellerProfile";
 import VerifyPhone from "./pages/VerifyPhone";
 import HowEscrowWorks from "./pages/HowEscrowWorks";
 import SellerGuidelines from "./pages/SellerGuidelines";
+import TrustAndSupport from "./pages/TrustAndSupport";
+import TermsOfService from "./pages/TermsOfService";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import Contact from "./pages/Contact";
+
 
 /* USER */
 import Dashboard from "./pages/Dashboard";
@@ -55,6 +60,11 @@ function App() {
         <Route path="/verify-phone" element={<VerifyPhone />} />
         <Route path="/how-escrow-works" element={<HowEscrowWorks />} />
         <Route path="/seller-guidelines" element={<SellerGuidelines />} />
+        <Route path="/trust-support" element={<TrustAndSupport />} />
+        <Route path="/terms" element={<TermsOfService />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/contact" element={<Contact />} />
+
 
         {/* ================= AUTH ================= */}
         <Route

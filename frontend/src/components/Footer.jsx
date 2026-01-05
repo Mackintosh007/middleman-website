@@ -69,6 +69,11 @@ function Footer() {
               </Link>
             </li>
             <li>
+              <Link to="/trust-support" className="hover:text-white">
+                Trust & Support
+              </Link>
+            </li>
+            <li>
               <Link to="/terms" className="hover:text-white">
                 Terms of Service
               </Link>
@@ -90,13 +95,17 @@ function Footer() {
           </h3>
           <ul className="space-y-2 text-sm">
             <li>
-              📧 support@middleman.com
+              <Link to="/contact" className="hover:text-white">
+                📧 support@middleman.com
+              </Link>
             </li>
             <li>
               📞 +234 9036997745
             </li>
             <li>
-              💬 WhatsApp Support
+              <Link to="/contact" className="hover:text-white">
+                💬 WhatsApp Support
+              </Link>
             </li>
           </ul>
         </div>

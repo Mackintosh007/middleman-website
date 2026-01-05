@@ -101,7 +101,6 @@ function Home() {
       return false;
     }
 
-    // 🔍 KEYWORD SEARCH (NEW)
     if (keyword) {
       const haystack = `
         ${item.title || ""}
@@ -120,7 +119,7 @@ function Home() {
 
   return (
     <>
-      {/* ✅ SEO (SAFE, NON-BREAKING) */}
+      {/* ================= SEO ================= */}
       <SEO
         title="Middleman | Omoku & ONELGA Marketplace"
         description="Buy, sell and trade properties, cars, gadgets, fashion and furniture safely with escrow protection in Omoku and ONELGA."
@@ -128,74 +127,85 @@ function Home() {
       />
 
       {/* ================= HERO ================= */}
-      <section className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-6 py-20 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900">
-            <span className="block text-lg md:text-xl font-bold text-gray-700 mb-3">
-              Omoku and ONELGA Marketplace
-            </span>
+      <section
+        className="relative border-b bg-cover bg-center"
+        style={{
+          backgroundImage: "url('/src/assets/marketplace.jpg')",
+        }}
+      >
+        {/* DARK OVERLAY */}
+        <div className="absolute inset-0 bg-black/50"></div>
 
-            Buy, Sell & Rent Safely — <br />
-            <span className="text-blue-600">
-              Properties, Cars , clothings & Gadgets
-            </span>
-          </h1>
+        {/* CONTENT */}
+        <div className="relative">
+          <div className="max-w-7xl mx-auto px-6 py-20 text-center">
+            <h1 className="text-4xl md:text-5xl font-bold text-white">
+              <span className="block text-lg md:text-xl font-bold text-gray-200 mb-3">
+                Omoku and ONELGA Marketplace
+              </span>
 
-          <p className="mt-6 text-lg text-gray-600 max-w-2xl mx-auto">
-            A trusted marketplace with escrow protection,
-            verified sellers, and direct WhatsApp negotiation
-            when needed.
-          </p>
+              Buy, Sell & Rent Safely — <br />
+              <span className="text-blue-300">
+                Properties, Cars, Clothings & Gadgets
+              </span>
+            </h1>
 
-          {/* SEARCH BAR (UNCHANGED UI) */}
-          <div className="mt-10 max-w-3xl mx-auto bg-gray-50 p-4 rounded-xl border">
-            <form
-              onSubmit={(e) => e.preventDefault()}
-              className="grid grid-cols-1 md:grid-cols-4 gap-4"
-            >
-              <select
-                className="w-full px-3 py-2 border rounded-lg bg-white cursor-pointer"
-                value={location}
-                onChange={(e) =>
-                  setLocation(e.target.value)
-                }
+            <p className="mt-6 text-lg text-gray-200 max-w-2xl mx-auto">
+              A trusted marketplace with escrow protection,
+              verified sellers, and direct WhatsApp negotiation
+              when needed.
+            </p>
+
+            {/* SEARCH BAR (UNCHANGED UI) */}
+            <div className="mt-10 max-w-3xl mx-auto bg-white/90 p-4 rounded-xl border">
+              <form
+                onSubmit={(e) => e.preventDefault()}
+                className="grid grid-cols-1 md:grid-cols-4 gap-4"
               >
-                <option value="">All locations</option>
-                {LOCATIONS.map((loc) => (
-                  <option key={loc} value={loc}>
-                    {loc}
-                  </option>
-                ))}
-              </select>
+                <select
+                  className="w-full px-3 py-2 border rounded-lg bg-white cursor-pointer"
+                  value={location}
+                  onChange={(e) =>
+                    setLocation(e.target.value)
+                  }
+                >
+                  <option value="">All locations</option>
+                  {LOCATIONS.map((loc) => (
+                    <option key={loc} value={loc}>
+                      {loc}
+                    </option>
+                  ))}
+                </select>
 
-              <select
-                className="w-full px-3 py-2 border rounded-lg bg-white cursor-pointer"
-                value={category}
-                onChange={(e) =>
-                  setCategory(e.target.value)
-                }
-              >
-                {CATEGORIES.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
+                <select
+                  className="w-full px-3 py-2 border rounded-lg bg-white cursor-pointer"
+                  value={category}
+                  onChange={(e) =>
+                    setCategory(e.target.value)
+                  }
+                >
+                  {CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
 
-              <input
-                type="number"
-                placeholder="Max price"
-                className="w-full px-3 py-2 border rounded-lg"
-                value={maxPrice}
-                onChange={(e) =>
-                  setMaxPrice(e.target.value)
-                }
-              />
+                <input
+                  type="number"
+                  placeholder="Max price"
+                  className="w-full px-3 py-2 border rounded-lg"
+                  value={maxPrice}
+                  onChange={(e) =>
+                    setMaxPrice(e.target.value)
+                  }
+                />
 
-              <button className="btn-primary">
-                Search
-              </button>
-            </form>
+                <button className="btn-primary">
+                  Search
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       </section>
