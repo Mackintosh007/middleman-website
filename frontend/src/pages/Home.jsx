@@ -5,6 +5,8 @@ import PropertyCard from "../components/PropertyCard";
 import PageWrapper from "../components/PageWrapper";
 import { LOCATIONS } from "../utils/locations";
 import SEO from "../components/SEO";
+import marketplaceBg from "../assets/marketplace.jpg";
+
 
 const CATEGORIES = [
   { label: "All", value: "all" },
@@ -130,7 +132,7 @@ function Home() {
       <section
         className="relative border-b bg-cover bg-center"
         style={{
-          backgroundImage: "url('/src/assets/marketplace.jpg')",
+          backgroundImage: `url(${marketplaceBg})`,
         }}
       >
         {/* DARK OVERLAY */}
