@@ -52,6 +52,8 @@ app.use("/api/webhook", require("./routes/paystackWebhook"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/admin/withdrawals", require("./routes/adminWithdrawals"));
 app.use("/api/admin/kyc", require("./routes/adminKyc"));
+app.use("/api/admin/seller-requests", require("./routes/adminSellerRequests"));
+
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () =>
