@@ -346,5 +346,29 @@ router.patch(
     }
   }
 );
+/**
+ * ===============================
+ * ADMIN: GET PENDING ESCROW ORDERS
+ * ===============================
+ */
+router.get(
+  "/admin/pending",
+  auth,
+  roles("admin"),
+  async (req, res) => {
+    const result = await pool.query(`
+      SELECT o.id, o.amount, p.title,
+             b.email AS buyer_email
+      FROM orders o
+      JOIN properties p ON p.id = o.property_id
+      JOIN users b ON b.id = o.buyer_id
+      WHERE o.status = 'paid'
+      ORDER BY o.created_at ASC
+    `);
+
+    res.json(result.rows);
+  }
+);
+
 
 module.exports = router;

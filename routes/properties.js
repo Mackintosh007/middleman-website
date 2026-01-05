@@ -23,7 +23,6 @@ router.post(
 
       let revenue_type = "commission";
 
-      // ✅ UPDATED CATEGORIES
       if (
         [
           "gadget",
@@ -60,7 +59,7 @@ router.post(
 );
 
 /**
- * ✅ GET ALL PROPERTIES (PUBLIC)
+ * GET ALL PROPERTIES (PUBLIC)
  */
 router.get("/", async (req, res) => {
   try {
@@ -81,7 +80,7 @@ router.get("/", async (req, res) => {
 });
 
 /**
- * ✅ GET LOGGED-IN SELLER'S PROPERTIES
+ * GET LOGGED-IN SELLER'S PROPERTIES
  */
 router.get("/mine", auth, async (req, res) => {
   try {
@@ -114,5 +113,60 @@ router.get("/:id", async (req, res) => {
 
   res.json(result.rows[0]);
 });
+
+/**
+ * ===============================
+ * ADMIN / SELLER: UPDATE PROPERTY STATUS ✅ FIXED
+ * ===============================
+ * PATCH /properties/:id/status
+ */
+router.patch(
+  "/:id/status",
+  auth,
+  roles("admin", "agent", "individual_seller"),
+  async (req, res) => {
+    try {
+      const { status } = req.body;
+      const propertyId = req.params.id;
+
+      if (!["active", "inactive"].includes(status)) {
+        return res.status(400).json({ error: "Invalid status" });
+      }
+
+      // Load property
+      const propRes = await pool.query(
+        "SELECT owner_id FROM properties WHERE id = $1",
+        [propertyId]
+      );
+
+      if (!propRes.rows.length) {
+        return res.status(404).json({ error: "Property not found" });
+      }
+
+      const property = propRes.rows[0];
+
+      // Only owner or admin can change status
+      if (
+        req.user.role !== "admin" &&
+        property.owner_id !== req.user.id
+      ) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+
+      const result = await pool.query(
+        `UPDATE properties
+         SET status = $1
+         WHERE id = $2
+         RETURNING id, status`,
+        [status, propertyId]
+      );
+
+      res.json(result.rows[0]);
+
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
 
 module.exports = router;

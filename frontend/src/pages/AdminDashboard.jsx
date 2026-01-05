@@ -8,7 +8,7 @@ function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [listings, setListings] = useState([]);
 
-  // ✅ WITHDRAWALS (ADDED)
+  // ✅ WITHDRAWALS
   const [withdrawals, setWithdrawals] = useState([]);
   const [loadingWithdrawals, setLoadingWithdrawals] = useState(true);
 
@@ -20,7 +20,7 @@ function AdminDashboard() {
   =============================== */
   useEffect(() => {
     api
-      .get("/admin/seller-requests")
+      .get("/seller-requests")
       .then(res => setSellerRequests(res.data))
       .catch(() => {});
   }, []);
@@ -36,31 +36,31 @@ function AdminDashboard() {
   }, []);
 
   /* ===============================
-     LOAD USERS
+     LOAD USERS ✅ FIXED
   =============================== */
   useEffect(() => {
     api
-      .get("/admin/users")
+      .get("/users")
       .then(res => setUsers(res.data))
       .finally(() => setLoadingUsers(false));
   }, []);
 
   /* ===============================
-     LOAD LISTINGS
+     LOAD LISTINGS ✅ FIXED
   =============================== */
   useEffect(() => {
     api
-      .get("/admin/properties")
-      .then(res => setListings(res.data))
+      .get("/properties")
+      .then(res => setListings(res.data.results))
       .finally(() => setLoadingListings(false));
   }, []);
 
   /* ===============================
-     LOAD WITHDRAWALS (ADDED)
+     LOAD WITHDRAWALS
   =============================== */
   useEffect(() => {
     api
-      .get("/admin/withdrawals?status=pending")
+      .get("/withdrawals/admin/pending")
       .then(res => setWithdrawals(res.data))
       .finally(() => setLoadingWithdrawals(false));
   }, []);
@@ -69,20 +69,20 @@ function AdminDashboard() {
      SELLER REQUEST ACTIONS
   =============================== */
   const approveRequest = async id => {
-    await api.patch(`/admin/seller-requests/${id}/approve`);
+    await api.patch(`/seller-requests/${id}/approve`);
     setSellerRequests(r => r.filter(x => x.id !== id));
   };
 
   const rejectRequest = async id => {
-    await api.patch(`/admin/seller-requests/${id}/reject`);
+    await api.patch(`/seller-requests/${id}/reject`);
     setSellerRequests(r => r.filter(x => x.id !== id));
   };
 
   /* ===============================
-     ESCROW ACTIONS
+     ESCROW ACTIONS ✅ FIXED
   =============================== */
-  const updateEscrow = async (id, status) => {
-    await api.patch(`/orders/${id}/status`, { status });
+  const updateEscrow = async (id) => {
+    await api.patch(`/orders/${id}/complete`);
     setEscrowOrders(o => o.filter(x => x.id !== id));
   };
 
@@ -90,7 +90,7 @@ function AdminDashboard() {
      USER VERIFICATION
   =============================== */
   const toggleVerification = async (id, verified) => {
-    const res = await api.patch(`/admin/users/${id}/verify`, {
+    const res = await api.patch(`/users/${id}/verify`, {
       verified: !verified
     });
 
@@ -106,7 +106,8 @@ function AdminDashboard() {
   =============================== */
   const toggleListingStatus = async (id, status) => {
     const newStatus = status === "active" ? "inactive" : "active";
-    await api.patch(`/admin/properties/${id}/status`, {
+
+    await api.patch(`/properties/${id}/status`, {
       status: newStatus
     });
 
@@ -118,15 +119,15 @@ function AdminDashboard() {
   };
 
   /* ===============================
-     WITHDRAWAL ACTIONS (ADDED)
+     WITHDRAWAL ACTIONS
   =============================== */
-  const approveWithdrawal = async (id) => {
-    await api.patch(`/admin/withdrawals/${id}/approve`);
+  const approveWithdrawal = async id => {
+    await api.patch(`/withdrawals/${id}/approve`);
     setWithdrawals(w => w.filter(x => x.id !== id));
   };
 
-  const rejectWithdrawal = async (id) => {
-    await api.patch(`/admin/withdrawals/${id}/reject`);
+  const rejectWithdrawal = async id => {
+    await api.patch(`/withdrawals/${id}/reject`);
     setWithdrawals(w => w.filter(x => x.id !== id));
   };
 
@@ -139,21 +140,21 @@ function AdminDashboard() {
       {/* QUICK ACTIONS */}
       <div className="mb-10 flex gap-4 flex-wrap">
         <a
-          href="/admin/withdrawals"
+          href="/withdrawals"
           className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
         >
           💸 Withdrawal Requests
         </a>
 
         <a
-          href="/admin/revenue"
+          href="/revenue"
           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
         >
           📊 Platform Revenue
         </a>
 
         <a
-          href="/admin/orders"
+          href="/orders"
           className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
         >
           📦 Escrow Orders
@@ -261,7 +262,7 @@ function AdminDashboard() {
       </section>
 
       {/* ===============================
-          WITHDRAWAL REQUESTS (ADDED)
+          WITHDRAWAL REQUESTS
       =============================== */}
       <section className="mb-14">
         <h2 className="text-xl font-semibold mb-4">
@@ -283,9 +284,6 @@ function AdminDashboard() {
               </p>
               <p className="text-sm">
                 Amount: ₦{Number(w.amount).toLocaleString()}
-              </p>
-              <p className="text-sm text-gray-600">
-                {w.bank_name} • {w.account_number}
               </p>
 
               <div className="mt-3 flex gap-3">
@@ -376,20 +374,10 @@ function AdminDashboard() {
 
               <div className="mt-3 flex gap-3">
                 <button
-                  onClick={() =>
-                    updateEscrow(o.id, "completed")
-                  }
+                  onClick={() => updateEscrow(o.id)}
                   className="bg-green-600 text-white px-3 py-1 rounded"
                 >
                   Release Escrow
-                </button>
-                <button
-                  onClick={() =>
-                    updateEscrow(o.id, "cancelled")
-                  }
-                  className="bg-red-600 text-white px-3 py-1 rounded"
-                >
-                  Cancel
                 </button>
               </div>
             </div>

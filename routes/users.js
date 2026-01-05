@@ -7,7 +7,6 @@ const auth = require("../middleware/auth");
 
 /**
  * REGISTER USER
- * Everyone registers as customer
  */
 router.post("/register", async (req, res) => {
   try {
@@ -114,7 +113,7 @@ router.get("/me", auth, async (req, res) => {
 });
 
 /**
- * UPDATE PROFILE (LIMITED FIELDS)
+ * UPDATE PROFILE
  */
 router.patch("/me", auth, async (req, res) => {
   const { first_name, last_name, phone_number, location } = req.body;
@@ -167,6 +166,48 @@ router.get("/seller/:id", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+/**
+ * ===============================
+ * ADMIN: GET ALL USERS
+ * ===============================
+ */
+router.get("/", auth, async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ error: "Access denied" });
+  }
+
+  const result = await pool.query(
+    `SELECT id, first_name, last_name, email, role, verified
+     FROM users
+     ORDER BY created_at DESC`
+  );
+
+  res.json(result.rows);
+});
+
+/**
+ * ===============================
+ * ADMIN: VERIFY / UNVERIFY USER
+ * ===============================
+ */
+router.patch("/:id/verify", auth, async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ error: "Access denied" });
+  }
+
+  const { verified } = req.body;
+
+  const result = await pool.query(
+    `UPDATE users
+     SET verified = $1
+     WHERE id = $2
+     RETURNING verified`,
+    [verified, req.params.id]
+  );
+
+  res.json(result.rows[0]);
 });
 
 module.exports = router;
