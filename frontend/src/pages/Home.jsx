@@ -4,6 +4,7 @@ import api from "../api/axios";
 import PropertyCard from "../components/PropertyCard";
 import PageWrapper from "../components/PageWrapper";
 import { LOCATIONS } from "../utils/locations";
+import SEO from "../components/SEO";
 
 const CATEGORIES = [
   { label: "All", value: "all" },
@@ -119,6 +120,13 @@ function Home() {
 
   return (
     <>
+      {/* ✅ SEO (SAFE, NON-BREAKING) */}
+      <SEO
+        title="Middleman | Omoku & ONELGA Marketplace"
+        description="Buy, sell and trade properties, cars, gadgets, fashion and furniture safely with escrow protection in Omoku and ONELGA."
+        url="https://middlemanng.com"
+      />
+
       {/* ================= HERO ================= */}
       <section className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-6 py-20 text-center">
