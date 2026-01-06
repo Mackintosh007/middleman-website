@@ -61,12 +61,13 @@ router.post(
         [propertyId]
       );
 
-      if (
+     if (
         ownerCheck.rows.length === 0 ||
-        ownerCheck.rows[0].owner_id !== req.user.id
+        Number(ownerCheck.rows[0].owner_id) !== Number(req.user.id)
       ) {
         return res.status(403).json({ error: "Unauthorized" });
       }
+
 
       // 2️⃣ Enforce max 5 images
       const countRes = await pool.query(
