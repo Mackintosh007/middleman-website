@@ -5,14 +5,14 @@ import PageWrapper from "../components/PageWrapper";
 import EscrowBuyButton from "../components/EscrowBuyButton";
 import WhatsAppCTA from "../components/WhatsAppCTA";
 import { useAuth } from "../context/AuthContext";
-import SEO from "../components/SEO"; // ✅ ADD (only import)
+import SEO from "../components/SEO";
 
 function PropertyDetails() {
   const { id } = useParams();
   const { user } = useAuth();
 
   const [property, setProperty] = useState(null);
-  const [images, setImages] = useState([]); // ✅ ADD
+  const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,11 +21,9 @@ function PropertyDetails() {
         const res = await api.get(`/properties/${id}`);
         setProperty(res.data);
 
-        // ✅ ADD: load extra images (non-breaking)
+        // ✅ FIX: correct images endpoint
         try {
-          const imgRes = await api.get(
-            `/properties/${id}/images`
-          );
+          const imgRes = await api.get(`/images/${id}`);
           setImages(imgRes.data || []);
         } catch {
           setImages([]);
@@ -59,7 +57,7 @@ function PropertyDetails() {
   /* ===============================
      CTA RULES (UNCHANGED)
   =============================== */
-  const isOwner = user && user.id === property.owner_id;
+  const isOwner = user && Number(user.id) === Number(property.owner_id);
   const isActive = property.status === "active";
 
   const showEscrowCTA =
@@ -72,9 +70,14 @@ function PropertyDetails() {
     !isOwner &&
     isActive;
 
+  // ✅ FIX: derive main image from uploaded images
+  const mainImage =
+    images.length > 0
+      ? images[0].image_url
+      : "https://via.placeholder.com/600x400?text=No+Image";
+
   return (
     <>
-      {/* ✅ SEO (SAFE, NON-BREAKING) */}
       <SEO
         title={`${property.title} | Middleman`}
         description={property.description?.slice(0, 150)}
@@ -85,20 +88,17 @@ function PropertyDetails() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
           {/* IMAGE SECTION */}
           <div>
-            {/* MAIN IMAGE (UNCHANGED) */}
+            {/* MAIN IMAGE */}
             <img
-              src={
-                property.image ||
-                "https://via.placeholder.com/600x400?text=No+Image"
-              }
+              src={mainImage}
               alt={property.title}
               className="w-full h-96 object-cover rounded-lg"
             />
 
-            {/* ✅ ADD: IMAGE GALLERY */}
-            {images.length > 0 && (
+            {/* IMAGE GALLERY */}
+            {images.length > 1 && (
               <div className="grid grid-cols-3 gap-3 mt-4">
-                {images.map((img) => (
+                {images.slice(1).map((img) => (
                   <img
                     key={img.id}
                     src={img.image_url}
@@ -128,7 +128,6 @@ function PropertyDetails() {
               {property.description}
             </p>
 
-            {/* BADGES (UNCHANGED) */}
             <div className="mt-4 flex gap-2">
               {property.revenue_type === "escrow" && (
                 <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
@@ -143,7 +142,6 @@ function PropertyDetails() {
               )}
             </div>
 
-            {/* CTA SECTION (UNCHANGED) */}
             <div className="mt-8">
               {showEscrowCTA && (
                 <EscrowBuyButton property={property} />

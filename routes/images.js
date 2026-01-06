@@ -61,12 +61,13 @@ router.post(
         [propertyId]
       );
 
-      if (
+     if (
         ownerCheck.rows.length === 0 ||
         Number(ownerCheck.rows[0].owner_id) !== Number(req.user.id)
       ) {
         return res.status(403).json({ error: "Unauthorized" });
       }
+
 
       // 2️⃣ Enforce max 5 images
       const countRes = await pool.query(
@@ -85,7 +86,7 @@ router.post(
       const insertedImages = [];
 
       for (const file of req.files) {
-        const imageUrl = file.secure_url; // ✅ CORRECT Cloudinary URL
+        const imageUrl = file.path; // Cloudinary URL
 
         const insertRes = await pool.query(
           `INSERT INTO property_images (property_id, image_url)
@@ -128,9 +129,7 @@ router.delete("/:imageId", auth, async (req, res) => {
       return res.status(404).json({ error: "Image not found" });
     }
 
-    if (
-      Number(result.rows[0].owner_id) !== Number(req.user.id)
-    ) {
+    if (result.rows[0].owner_id !== req.user.id) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
