@@ -5,23 +5,19 @@ const auth = require("../middleware/auth");
 
 /**
  * GET /wallet
- * - Returns user's wallet
- * - Auto-creates wallet if missing
- * - Safely includes bank verification status
+ * Safe, non-crashing wallet loader
  */
 router.get("/", auth, async (req, res) => {
-  try {
-    const userId = req.user.id;
+  const userId = req.user.id;
 
-    /**
-     * 1️⃣ Ensure wallet exists
-     */
-    const walletCheck = await pool.query(
+  try {
+    // 1️⃣ Ensure wallet exists
+    const walletRes = await pool.query(
       "SELECT * FROM wallets WHERE user_id = $1",
       [userId]
     );
 
-    if (walletCheck.rows.length === 0) {
+    if (walletRes.rows.length === 0) {
       await pool.query(
         `INSERT INTO wallets (user_id, balance, pending)
          VALUES ($1, 0, 0)`,
@@ -29,33 +25,38 @@ router.get("/", auth, async (req, res) => {
       );
     }
 
-    /**
-     * 2️⃣ Load wallet + bank verification safely
-     */
-    const result = await pool.query(
+    // 2️⃣ Fetch wallet + bank status (SAFE)
+    const dataRes = await pool.query(
       `
       SELECT
-        w.id,
         w.balance,
         w.pending,
-        w.created_at,
         COALESCE(u.bank_verified, false) AS bank_verified
       FROM wallets w
-      LEFT JOIN users u ON u.id = w.user_id
+      JOIN users u ON u.id = w.user_id
       WHERE w.user_id = $1
+      LIMIT 1
       `,
       [userId]
     );
 
-    if (!result.rows.length) {
-      return res.status(404).json({ error: "Wallet not found" });
+    if (dataRes.rows.length === 0) {
+      return res.json({
+        balance: 0,
+        pending: 0,
+        bank_verified: false
+      });
     }
 
-    res.json(result.rows[0]);
+    res.json(dataRes.rows[0]);
 
   } catch (err) {
-    console.error("Wallet error:", err);
-    res.status(500).json({ error: "Failed to load wallet" });
+    console.error("WALLET LOAD FAILED:", err.message);
+    res.status(500).json({
+      balance: 0,
+      pending: 0,
+      bank_verified: false
+    });
   }
 });
 

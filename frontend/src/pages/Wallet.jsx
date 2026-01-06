@@ -25,22 +25,19 @@ function Wallet() {
   }, []);
 
   if (loading) {
-    return (
-      <PageWrapper>
-        <p>Loading wallet...</p>
-      </PageWrapper>
-    );
-  }
+          return <PageWrapper>Loading...</PageWrapper>;
+        }
 
-  if (!wallet) {
-    return (
-      <PageWrapper>
-        <p className="text-red-600">
-          Unable to load wallet.
-        </p>
-      </PageWrapper>
-    );
-  }
+        if (!wallet) {
+          return (
+            <PageWrapper>
+              <p className="text-red-600">
+                Unable to load wallet. Please refresh.
+              </p>
+            </PageWrapper>
+          );
+        }
+
 
   // ✅ WITHDRAWAL RULE
   const canWithdraw = Number(wallet.balance) >= 100;
