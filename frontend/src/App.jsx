@@ -33,6 +33,9 @@ import MyProperties from "./pages/MyProperties";
 import Wallet from "./pages/Wallet";
 import Withdraw from "./pages/Withdraw";
 import VerifyBank from "./pages/VerifyBank";
+import VerifyEmail from "./pages/VerifyEmail";
+import ResendVerification from "./pages/ResendVerification";
+
 
 /* ADMIN */
 import AdminDashboard from "./pages/AdminDashboard";
@@ -72,6 +75,10 @@ function App() {
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/resend-verification" element={<ResendVerification />} />
+
+
 
 
         {/* ================= AUTH ================= */}
