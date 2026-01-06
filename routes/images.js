@@ -14,7 +14,10 @@ router.get("/:propertyId", async (req, res) => {
     const { propertyId } = req.params;
 
     const result = await pool.query(
-      "SELECT id, image_url FROM property_images WHERE property_id = $1",
+      `SELECT id, image_url
+       FROM property_images
+       WHERE property_id = $1
+       ORDER BY id ASC`,
       [propertyId]
     );
 
@@ -28,19 +31,24 @@ router.get("/:propertyId", async (req, res) => {
 /**
  * ===============================
  * UPLOAD PROPERTY IMAGES (OWNER ONLY)
- * Supports MULTIPLE images
- * Max 5 images per property
+ * MAX: 5 IMAGES
  * ===============================
+ *
+ * ENDPOINT:
+ * POST /api/images/upload/:propertyId
+ *
+ * FIELD NAME (VERY IMPORTANT):
+ * images
  */
 router.post(
   "/upload/:propertyId",
   auth,
-  upload.array("images", 5), // 🔥 MUST MATCH FRONTEND FIELD NAME
+  upload.array("images", 5),
   async (req, res) => {
     try {
       const { propertyId } = req.params;
 
-      // 🧪 DEBUG (safe to remove later)
+      // 🔍 DEBUG (safe to keep during testing)
       console.log("FILES:", req.files);
 
       if (!req.files || req.files.length === 0) {
@@ -60,40 +68,36 @@ router.post(
         return res.status(403).json({ error: "Unauthorized" });
       }
 
-      // 2️⃣ Enforce max 5 images TOTAL
+      // 2️⃣ Enforce max 5 images
       const countRes = await pool.query(
         "SELECT COUNT(*) FROM property_images WHERE property_id = $1",
         [propertyId]
       );
 
       const existingCount = Number(countRes.rows[0].count);
-      const incomingCount = req.files.length;
-
-      if (existingCount + incomingCount > 5) {
+      if (existingCount + req.files.length > 5) {
         return res.status(400).json({
           error: "Maximum of 5 images allowed per listing",
         });
       }
 
       // 3️⃣ Save images
-      const savedImages = [];
+      const insertedImages = [];
 
       for (const file of req.files) {
-        const result = await pool.query(
+        const imageUrl = file.path; // Cloudinary URL
+
+        const insertRes = await pool.query(
           `INSERT INTO property_images (property_id, image_url)
            VALUES ($1, $2)
            RETURNING id, image_url`,
-          [propertyId, file.path]
+          [propertyId, imageUrl]
         );
 
-        savedImages.push(result.rows[0]);
+        insertedImages.push(insertRes.rows[0]);
       }
 
-      res.status(201).json({
-        success: true,
-        images: savedImages,
-      });
-
+      res.status(201).json(insertedImages);
     } catch (err) {
       console.error("IMAGE UPLOAD ERROR:", err);
       res.status(500).json({ error: "Image upload failed" });
@@ -120,7 +124,7 @@ router.delete("/:imageId", auth, async (req, res) => {
       [imageId]
     );
 
-    if (!result.rows.length) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: "Image not found" });
     }
 
@@ -134,7 +138,6 @@ router.delete("/:imageId", auth, async (req, res) => {
     );
 
     res.json({ success: true });
-
   } catch (err) {
     console.error("DELETE IMAGE ERROR:", err);
     res.status(500).json({ error: "Failed to delete image" });
