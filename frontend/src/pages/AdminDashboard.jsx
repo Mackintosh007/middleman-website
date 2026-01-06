@@ -140,21 +140,21 @@ function AdminDashboard() {
       {/* QUICK ACTIONS */}
       <div className="mb-10 flex gap-4 flex-wrap">
         <a
-          href="/withdrawals"
+          href="/admin/withdrawals"
           className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
         >
           💸 Withdrawal Requests
         </a>
 
         <a
-          href="/revenue"
+          href="/admin/revenue"
           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
         >
           📊 Platform Revenue
         </a>
 
         <a
-          href="/orders"
+          href="/admin/orders"
           className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
         >
           📦 Escrow Orders
