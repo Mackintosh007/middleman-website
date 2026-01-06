@@ -48,13 +48,7 @@ router.post("/request", auth, async (req, res) => {
       [amount, userId]
     );
 
-    await auditLog({
-      adminId: req.user.id,
-      action: "approve_withdrawal",
-      entityType: "withdrawal",
-      entityId: id
-    });
-
+    // ❌ NO AUDIT LOG HERE (seller action)
 
     res.json({ success: true, message: "Withdrawal requested" });
 
@@ -82,6 +76,7 @@ router.get("/mine", auth, async (req, res) => {
     res.status(500).json({ error: "Failed to load withdrawals" });
   }
 });
+
 /**
  * GET /withdrawals/admin/pending
  * Admin: view pending withdrawals
@@ -129,6 +124,14 @@ router.patch("/:id/approve", auth, async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(400).json({ error: "Invalid withdrawal" });
     }
+
+    // ✅ AUDIT LOG (ADMIN ACTION)
+    await auditLog({
+      adminId: req.user.id,
+      action: "approve_withdrawal",
+      entityType: "withdrawal",
+      entityId: id
+    });
 
     res.json({ success: true });
 
@@ -178,12 +181,19 @@ router.patch("/:id/reject", auth, async (req, res) => {
       [withdrawal.amount, withdrawal.user_id]
     );
 
+    // ✅ AUDIT LOG (ADMIN ACTION)
+    await auditLog({
+      adminId: req.user.id,
+      action: "reject_withdrawal",
+      entityType: "withdrawal",
+      entityId: id
+    });
+
     res.json({ success: true });
 
   } catch (err) {
     res.status(500).json({ error: "Rejection failed" });
   }
 });
-
 
 module.exports = router;

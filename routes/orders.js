@@ -146,14 +146,6 @@ router.post("/:id/pay", auth, async (req, res) => {
       }
     );
 
-    await auditLog({
-      adminId: req.user.id,
-      action: "force_complete_escrow",
-      entityType: "order",
-      entityId: req.params.id
-    });
-
-
     // ✅ Mark order as PAID once Paystack is initialized
     await pool.query(
       "UPDATE orders SET status = 'paid' WHERE id = $1",
@@ -253,7 +245,6 @@ router.patch("/:id/confirm-delivery", auth, async (req, res) => {
         o.*,
         p.id AS property_id,
         p.title,
-        s.id AS seller_id,
         s.email AS seller_email,
         s.first_name AS seller_name,
         b.email AS buyer_email,
@@ -287,11 +278,9 @@ router.patch("/:id/confirm-delivery", auth, async (req, res) => {
       Number(order.amount) - Number(order.platform_fee);
 
     await pool.query(
-      `
-      UPDATE orders
-      SET status = 'completed', released_at = NOW()
-      WHERE id = $1
-      `,
+      `UPDATE orders
+       SET status = 'completed', released_at = NOW()
+       WHERE id = $1`,
       [id]
     );
 
@@ -304,6 +293,14 @@ router.patch("/:id/confirm-delivery", auth, async (req, res) => {
       "UPDATE wallets SET balance = balance + $1 WHERE user_id = $2",
       [sellerPayout, order.seller_id]
     );
+
+    // ✅ AUDIT LOG (ESCROW RELEASE)
+    await auditLog({
+      adminId: null,
+      action: "escrow_released",
+      entityType: "order",
+      entityId: id
+    });
 
     await sendEmail({
       to: order.seller_email,
@@ -345,16 +342,49 @@ router.patch(
   roles("admin"),
   async (req, res) => {
     try {
-      await pool.query(
-        "UPDATE orders SET status = 'completed' WHERE id = $1",
-        [req.params.id]
+      const { id } = req.params;
+
+      const orderRes = await pool.query(
+        "SELECT * FROM orders WHERE id = $1",
+        [id]
       );
+
+      if (!orderRes.rows.length) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+
+      const order = orderRes.rows[0];
+      const sellerPayout =
+        Number(order.amount) - Number(order.platform_fee);
+
+      await pool.query(
+        `UPDATE orders
+         SET status = 'completed', released_at = NOW()
+         WHERE id = $1`,
+        [id]
+      );
+
+      await pool.query(
+        "UPDATE wallets SET balance = balance + $1 WHERE user_id = $2",
+        [sellerPayout, order.seller_id]
+      );
+
+      // ✅ AUDIT LOG (ADMIN FORCE)
+      await auditLog({
+        adminId: req.user.id,
+        action: "force_complete_escrow",
+        entityType: "order",
+        entityId: id
+      });
+
       res.json({ success: true });
+
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
   }
 );
+
 /**
  * ===============================
  * ADMIN: GET PENDING ESCROW ORDERS
@@ -378,6 +408,5 @@ router.get(
     res.json(result.rows);
   }
 );
-
 
 module.exports = router;

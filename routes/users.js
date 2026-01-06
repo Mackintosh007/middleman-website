@@ -135,15 +135,6 @@ router.patch("/me", auth, async (req, res) => {
   res.json(result.rows[0]);
 });
 
-  await auditLog({
-    adminId: req.user.id,
-    action: "verify_user",
-    entityType: "user",
-    entityId: req.params.id,
-    metadata: { verified: true }
-  });
-
-
 /**
  * PUBLIC SELLER PROFILE
  */
@@ -207,17 +198,30 @@ router.patch("/:id/verify", auth, async (req, res) => {
     return res.status(403).json({ error: "Access denied" });
   }
 
-  const { verified } = req.body;
+  try {
+    const { verified } = req.body;
 
-  const result = await pool.query(
-    `UPDATE users
-     SET verified = $1
-     WHERE id = $2
-     RETURNING verified`,
-    [verified, req.params.id]
-  );
+    const result = await pool.query(
+      `UPDATE users
+       SET verified = $1
+       WHERE id = $2
+       RETURNING verified`,
+      [verified, req.params.id]
+    );
 
-  res.json(result.rows[0]);
+    // ✅ AUDIT LOG — SAFE & CORRECT
+    await auditLog({
+      adminId: req.user.id,
+      action: verified ? "verify_user" : "unverify_user",
+      entityType: "user",
+      entityId: req.params.id,
+      metadata: { verified }
+    });
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

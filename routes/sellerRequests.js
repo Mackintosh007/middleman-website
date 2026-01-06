@@ -62,7 +62,7 @@ router.get("/", auth, roles("admin"), async (req, res) => {
 
 /**
  * ===============================
- * ADMIN: APPROVE REQUEST ✅ FIXED
+ * ADMIN: APPROVE REQUEST
  * ===============================
  */
 router.patch(
@@ -104,7 +104,6 @@ router.patch(
         [request.requested_role, request.user_id]
       );
 
-      // create agent record if needed
       if (request.requested_role === "agent") {
         await client.query(
           `INSERT INTO agents (user_id, verified)
@@ -113,7 +112,10 @@ router.patch(
           [request.user_id]
         );
       }
-      
+
+      await client.query("COMMIT");
+
+      // ✅ AUDIT LOG (AFTER COMMIT)
       await auditLog({
         adminId: req.user.id,
         action: "approve_seller_request",
@@ -123,9 +125,6 @@ router.patch(
           role: request.requested_role
         }
       });
-
-
-      await client.query("COMMIT");
 
       res.json({ success: true });
 
@@ -141,7 +140,7 @@ router.patch(
 
 /**
  * ===============================
- * ADMIN: REJECT REQUEST ✅ FIXED
+ * ADMIN: REJECT REQUEST
  * ===============================
  */
 router.patch(
@@ -161,6 +160,14 @@ router.patch(
       if (!result.rows.length) {
         return res.status(400).json({ error: "Invalid request" });
       }
+
+      // ✅ AUDIT LOG
+      await auditLog({
+        adminId: req.user.id,
+        action: "reject_seller_request",
+        entityType: "seller_request",
+        entityId: req.params.id
+      });
 
       res.json({ success: true });
 
