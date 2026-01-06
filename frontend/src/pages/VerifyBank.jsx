@@ -30,23 +30,24 @@ function VerifyBank() {
       </h1>
 
       <select
-        className="border p-2 w-full mb-3"
-        value={form.bank_name}
-        onChange={(e) =>
-          setForm({ ...form, bank_name: e.target.value })
-        }
-      >
-        <option value="">Select Bank</option>
-        <option value="GTBank">GTBank</option>
-        <option value="Access">Access Bank</option>
-        <option value="Zenith">Zenith Bank</option>
-        <option value="UBA">UBA</option>
-        <option value="FirstBank">First Bank</option>
-        <option value="Kuda">Kuda</option>
-        <option value="Opay">Opay</option>
-        <option value="Palmpay">Palmpay</option>
-        <option value="Moniepoint">Moniepoint</option>
-      </select>
+          className="border p-2 w-full mb-3"
+          onChange={(e) =>
+            setForm({ ...form, bank_name: e.target.value })
+          }
+        >
+          <option value="">Select Bank</option>
+
+          <option value="GTBank">GTBank</option>
+          <option value="Access">Access Bank</option>
+          <option value="Zenith">Zenith Bank</option>
+          <option value="UBA">UBA</option>
+          <option value="FirstBank">First Bank</option>
+
+          <option value="Kuda">Kuda</option>
+          <option value="Opay">Opay</option>
+          <option value="Palmpay">Palmpay</option>
+          <option value="Moniepoint">Moniepoint</option>
+        </select>
 
       <input
         className="border p-2 w-full mb-3"
