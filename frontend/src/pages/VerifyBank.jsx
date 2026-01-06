@@ -25,10 +25,13 @@ function VerifyBank() {
 
   return (
     <PageWrapper>
-      <h1 className="text-xl font-bold mb-4">Verify Bank Account</h1>
+      <h1 className="text-xl font-bold mb-4">
+        Verify Bank Account
+      </h1>
 
       <select
         className="border p-2 w-full mb-3"
+        value={form.bank_name}
         onChange={(e) =>
           setForm({ ...form, bank_name: e.target.value })
         }
@@ -39,11 +42,16 @@ function VerifyBank() {
         <option value="Zenith">Zenith Bank</option>
         <option value="UBA">UBA</option>
         <option value="FirstBank">First Bank</option>
+        <option value="Kuda">Kuda</option>
+        <option value="Opay">Opay</option>
+        <option value="Palmpay">Palmpay</option>
+        <option value="Moniepoint">Moniepoint</option>
       </select>
 
       <input
         className="border p-2 w-full mb-3"
         placeholder="Account Number"
+        value={form.account_number}
         onChange={(e) =>
           setForm({ ...form, account_number: e.target.value })
         }
@@ -54,7 +62,7 @@ function VerifyBank() {
         disabled={loading}
         className="bg-blue-600 text-white px-4 py-2"
       >
-        Verify Account
+        {loading ? "Verifying..." : "Verify Account"}
       </button>
 
       {verified && (
@@ -72,7 +80,7 @@ function VerifyBank() {
           </p>
 
           <p className="mt-2 text-green-700 font-semibold">
-            Account verified successfully
+            Bank account verified & saved successfully
           </p>
         </div>
       )}

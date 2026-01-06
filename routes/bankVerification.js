@@ -3,6 +3,7 @@ const router = express.Router();
 const axios = require("axios");
 const auth = require("../middleware/auth");
 const roles = require("../middleware/roles");
+const pool = require("../db");
 const banks = require("../utils/banks");
 
 /**
@@ -30,6 +31,7 @@ router.post(
         });
       }
 
+      // 🔍 Verify via Paystack
       const response = await axios.get(
         "https://api.paystack.co/bank/resolve",
         {
@@ -43,14 +45,36 @@ router.post(
         }
       );
 
-      res.json({
-        account_name: response.data.data.account_name,
-        account_number,
-        bank_name,
-      });
-    } catch (err) {
-      console.error(err.response?.data || err.message);
+      const account_name = response.data.data.account_name;
 
+      // 💾 SAVE VERIFIED BANK DETAILS (CONNECTED TO WITHDRAWALS)
+      await pool.query(
+        `
+        UPDATE users
+        SET
+          bank_name = $1,
+          account_number = $2,
+          account_name = $3,
+          bank_verified = true
+        WHERE id = $4
+        `,
+        [
+          bank_name,
+          account_number,
+          account_name,
+          req.user.id
+        ]
+      );
+
+      res.json({
+        bank_name,
+        account_number,
+        account_name,
+        verified: true
+      });
+
+    } catch (err) {
+      console.error("BANK VERIFY ERROR:", err.response?.data || err.message);
       res.status(400).json({
         error: "Bank verification failed",
       });

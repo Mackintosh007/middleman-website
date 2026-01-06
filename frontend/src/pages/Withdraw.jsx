@@ -18,7 +18,7 @@ function Withdraw() {
         const res = await api.get("/wallet");
 
         // ✅ Check bank exists
-        if (!res.data.bank_account) {
+        if (!res.data.bank_verified) {
           alert("Please add your bank details before withdrawing.");
           navigate("/verify-bank");
           return;
@@ -50,7 +50,7 @@ function Withdraw() {
     setSubmitting(true);
 
     try {
-      await api.post("/withdrawals", { amount });
+      await api.post("/withdrawals/request", { amount });
       alert("Withdrawal request submitted");
       navigate("/wallet");
     } catch (err) {
