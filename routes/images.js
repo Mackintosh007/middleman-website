@@ -5,7 +5,9 @@ const auth = require("../middleware/auth");
 const upload = require("../middleware/upload");
 
 /**
- * Get images for a property (public)
+ * ===============================
+ * GET IMAGES FOR A PROPERTY (PUBLIC)
+ * ===============================
  */
 router.get("/:propertyId", async (req, res) => {
   try {
@@ -18,24 +20,34 @@ router.get("/:propertyId", async (req, res) => {
 
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("LOAD IMAGES ERROR:", err);
+    res.status(500).json({ error: "Failed to load images" });
   }
 });
 
 /**
- * Upload image (OWNER ONLY, MAX 5)
+ * ===============================
+ * UPLOAD PROPERTY IMAGES (OWNER ONLY)
+ * Supports MULTIPLE images
+ * Max 5 images per property
+ * ===============================
  */
 router.post(
-  "/:propertyId",
+  "/upload/:propertyId",
   auth,
-  upload.single("image"),
+  upload.array("images", 5), // 🔥 MUST MATCH FRONTEND FIELD NAME
   async (req, res) => {
     try {
       const { propertyId } = req.params;
-      
-      console.log("FILE:", req.file);
 
-      // verify ownership
+      // 🧪 DEBUG (safe to remove later)
+      console.log("FILES:", req.files);
+
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ error: "No images uploaded" });
+      }
+
+      // 1️⃣ Verify ownership
       const ownerCheck = await pool.query(
         "SELECT owner_id FROM properties WHERE id = $1",
         [propertyId]
@@ -48,36 +60,51 @@ router.post(
         return res.status(403).json({ error: "Unauthorized" });
       }
 
-      // ✅ LIMIT: max 5 images
-      const countResult = await pool.query(
+      // 2️⃣ Enforce max 5 images TOTAL
+      const countRes = await pool.query(
         "SELECT COUNT(*) FROM property_images WHERE property_id = $1",
         [propertyId]
       );
 
-      if (Number(countResult.rows[0].count) >= 5) {
-        return res
-          .status(400)
-          .json({ error: "Maximum of 5 images allowed" });
+      const existingCount = Number(countRes.rows[0].count);
+      const incomingCount = req.files.length;
+
+      if (existingCount + incomingCount > 5) {
+        return res.status(400).json({
+          error: "Maximum of 5 images allowed per listing",
+        });
       }
 
-      const imageUrl = req.file.path;
+      // 3️⃣ Save images
+      const savedImages = [];
 
-      const result = await pool.query(
-        `INSERT INTO property_images (property_id, image_url)
-         VALUES ($1, $2)
-         RETURNING id, image_url`,
-        [propertyId, imageUrl]
-      );
+      for (const file of req.files) {
+        const result = await pool.query(
+          `INSERT INTO property_images (property_id, image_url)
+           VALUES ($1, $2)
+           RETURNING id, image_url`,
+          [propertyId, file.path]
+        );
 
-      res.status(201).json(result.rows[0]);
+        savedImages.push(result.rows[0]);
+      }
+
+      res.status(201).json({
+        success: true,
+        images: savedImages,
+      });
+
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      console.error("IMAGE UPLOAD ERROR:", err);
+      res.status(500).json({ error: "Image upload failed" });
     }
   }
 );
 
 /**
- * Delete an image (OWNER ONLY)
+ * ===============================
+ * DELETE IMAGE (OWNER ONLY)
+ * ===============================
  */
 router.delete("/:imageId", auth, async (req, res) => {
   try {
@@ -93,13 +120,11 @@ router.delete("/:imageId", auth, async (req, res) => {
       [imageId]
     );
 
-    if (result.rows.length === 0) {
+    if (!result.rows.length) {
       return res.status(404).json({ error: "Image not found" });
     }
 
-    const image = result.rows[0];
-
-    if (image.owner_id !== req.user.id) {
+    if (result.rows[0].owner_id !== req.user.id) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
@@ -109,8 +134,10 @@ router.delete("/:imageId", auth, async (req, res) => {
     );
 
     res.json({ success: true });
+
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("DELETE IMAGE ERROR:", err);
+    res.status(500).json({ error: "Failed to delete image" });
   }
 });
 
