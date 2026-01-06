@@ -6,8 +6,8 @@ const auth = require("../middleware/auth");
 /**
  * GET /wallet
  * - Returns user's wallet
- * - Auto-creates wallet if it does not exist
- * - Includes bank verification status
+ * - Auto-creates wallet if missing
+ * - Safely includes bank verification status
  */
 router.get("/", auth, async (req, res) => {
   try {
@@ -16,12 +16,12 @@ router.get("/", auth, async (req, res) => {
     /**
      * 1️⃣ Ensure wallet exists
      */
-    const existingWallet = await pool.query(
+    const walletCheck = await pool.query(
       "SELECT * FROM wallets WHERE user_id = $1",
       [userId]
     );
 
-    if (existingWallet.rows.length === 0) {
+    if (walletCheck.rows.length === 0) {
       await pool.query(
         `INSERT INTO wallets (user_id, balance, pending)
          VALUES ($1, 0, 0)`,
@@ -30,7 +30,7 @@ router.get("/", auth, async (req, res) => {
     }
 
     /**
-     * 2️⃣ Return wallet + bank info
+     * 2️⃣ Load wallet + bank verification safely
      */
     const result = await pool.query(
       `
@@ -39,12 +39,9 @@ router.get("/", auth, async (req, res) => {
         w.balance,
         w.pending,
         w.created_at,
-        u.bank_verified,
-        u.bank_name,
-        u.account_number,
-        u.account_name
+        COALESCE(u.bank_verified, false) AS bank_verified
       FROM wallets w
-      JOIN users u ON u.id = w.user_id
+      LEFT JOIN users u ON u.id = w.user_id
       WHERE w.user_id = $1
       `,
       [userId]
