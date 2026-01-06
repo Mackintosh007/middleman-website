@@ -5,6 +5,7 @@ const auth = require("../middleware/auth");
 const roles = require("../middleware/roles");
 const sendEmail = require("../utils/sendEmail");
 const axios = require("axios");
+const auditLog = require("../utils/auditLog");
 
 const PLATFORM_FEE_PERCENT = 6.5;
 const DELIVERY_FEE = 800;
@@ -144,6 +145,14 @@ router.post("/:id/pay", auth, async (req, res) => {
         },
       }
     );
+
+    await auditLog({
+      adminId: req.user.id,
+      action: "force_complete_escrow",
+      entityType: "order",
+      entityId: req.params.id
+    });
+
 
     // ✅ Mark order as PAID once Paystack is initialized
     await pool.query(

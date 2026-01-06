@@ -39,6 +39,14 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdminRevenue from "./pages/AdminRevenue";
 import AdminOrders from "./pages/AdminOrders";
 import AdminWithdrawals from "./pages/AdminWithdrawals";
+import AdminUsers from "./pages/AdminUsers";
+import AdminSellerRequests from "./pages/AdminSellerRequests";
+import AdminListings from "./pages/AdminListings";
+import AdminAuditLogs from "./pages/AdminAuditLogs";
+
+
+
+
 
 function App() {
   return (
@@ -141,6 +149,16 @@ function App() {
         />
 
         <Route
+          path="/admin/audit-logs"
+          element={
+            <ProtectedRoute role="admin">
+              <AdminAuditLogs />
+            </ProtectedRoute>
+          }
+        />
+
+
+        <Route
           path="/verify-bank"
           element={
             <ProtectedRoute roles={["agent", "individual_seller"]}>
@@ -176,6 +194,36 @@ function App() {
             </ProtectedRoute>
           }
         />
+
+
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute role="admin">
+              <AdminUsers />
+            </ProtectedRoute>
+          }
+        />
+        
+        <Route
+          path="/admin/seller-requests"
+          element={
+            <ProtectedRoute role="admin">
+              <AdminSellerRequests />
+            </ProtectedRoute>
+          }
+        />
+        
+  
+        <Route
+          path="/admin/listings"
+          element={
+            <ProtectedRoute role="admin">
+              <AdminListings />
+            </ProtectedRoute>
+          }
+        />
+
 
         <Route
           path="/admin/withdrawals"

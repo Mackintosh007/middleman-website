@@ -5,92 +5,87 @@ import PageWrapper from "../components/PageWrapper";
 function AdminOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  const loadOrders = async () => {
-    try {
-      const res = await api.get("/orders");
-      setOrders(res.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [actionLoading, setActionLoading] = useState(null);
 
   useEffect(() => {
     loadOrders();
   }, []);
 
-  const releaseFunds = async (id) => {
-    if (!window.confirm("Confirm delivery and release funds?")) {
-      return;
-    }
-
+  const loadOrders = async () => {
     try {
-      await api.post(`/admin/orders/${id}/release`);
-      loadOrders();
+      const res = await api.get("/orders/admin/pending");
+      setOrders(res.data || []);
     } catch (err) {
-      alert(err.response?.data?.error || "Failed to release funds");
+      console.error("Failed to load orders", err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (loading) {
-    return <PageWrapper>Loading orders...</PageWrapper>;
-  }
+  const forceComplete = async id => {
+    if (!window.confirm("Force complete this escrow order?")) return;
+
+    setActionLoading(id);
+
+    try {
+      await api.patch(`/orders/${id}/complete`);
+      setOrders(o => o.filter(x => x.id !== id));
+    } catch (err) {
+      alert("Failed to complete escrow");
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   return (
     <PageWrapper>
-      <h1 className="text-2xl font-bold mb-6">Escrow Orders</h1>
+      <h1 className="text-2xl font-bold mb-6">
+        Escrow Orders
+      </h1>
 
-      <div className="overflow-x-auto">
-        <table className="w-full border">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="border p-2">Order ID</th>
-              <th className="border p-2">Item</th>
-              <th className="border p-2">Buyer Paid</th>
-              <th className="border p-2">Seller Payout</th>
-              <th className="border p-2">Platform Earnings</th>
-              <th className="border p-2">Status</th>
-              <th className="border p-2">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {orders.map((o) => {
-              const sellerPayout = o.amount - o.platform_fee;
-              const platformEarnings =
-                o.platform_fee + o.delivery_fee;
+      {loading ? (
+        <p>Loading escrow orders...</p>
+      ) : orders.length === 0 ? (
+        <p className="text-gray-500">
+          No pending escrow orders.
+        </p>
+      ) : (
+        <div className="space-y-4">
+          {orders.map(o => (
+            <div
+              key={o.id}
+              className="border p-4 rounded bg-white"
+            >
+              <p className="font-semibold">
+                {o.title}
+              </p>
 
-              return (
-                <tr key={o.id}>
-                  <td className="border p-2">{o.id}</td>
-                  <td className="border p-2">{o.property_id}</td>
-                  <td className="border p-2">
-                    ₦{Number(o.total_amount).toLocaleString()}
-                  </td>
-                  <td className="border p-2">
-                    ₦{Number(sellerPayout).toLocaleString()}
-                  </td>
-                  <td className="border p-2">
-                    ₦{Number(platformEarnings).toLocaleString()}
-                  </td>
-                  <td className="border p-2">{o.status}</td>
-                  <td className="border p-2">
-                    {o.status === "funds_held" && (
-                      <button
-                        onClick={() => releaseFunds(o.id)}
-                        className="bg-green-600 text-white px-3 py-1 rounded"
-                      >
-                        Release Funds
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+              <p className="text-sm">
+                Buyer: <strong>{o.buyer_email}</strong>
+              </p>
+
+              <p className="text-sm">
+                Amount: ₦
+                {Number(o.amount).toLocaleString()}
+              </p>
+
+              <p className="text-sm">
+                Status: <strong>{o.status}</strong>
+              </p>
+
+              <div className="mt-3">
+                <button
+                  disabled={actionLoading === o.id}
+                  onClick={() => forceComplete(o.id)}
+                  className="px-3 py-1 bg-purple-600 text-white rounded disabled:opacity-50"
+                >
+                  Force Complete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </PageWrapper>
   );
 }

@@ -5,15 +5,26 @@ import PageWrapper from "../components/PageWrapper";
 function AdminDashboard() {
   const [sellerRequests, setSellerRequests] = useState([]);
   const [escrowOrders, setEscrowOrders] = useState([]);
-  const [users, setUsers] = useState([]);
   const [listings, setListings] = useState([]);
 
   // ✅ WITHDRAWALS
   const [withdrawals, setWithdrawals] = useState([]);
   const [loadingWithdrawals, setLoadingWithdrawals] = useState(true);
 
-  const [loadingUsers, setLoadingUsers] = useState(true);
   const [loadingListings, setLoadingListings] = useState(true);
+
+  // ✅ ADMIN STATS
+  const [stats, setStats] = useState(null);
+
+  /* ===============================
+     LOAD ADMIN STATS
+  =============================== */
+  useEffect(() => {
+    api
+      .get("/admin/stats")
+      .then(res => setStats(res.data))
+      .catch(() => {});
+  }, []);
 
   /* ===============================
      LOAD SELLER REQUESTS
@@ -36,17 +47,7 @@ function AdminDashboard() {
   }, []);
 
   /* ===============================
-     LOAD USERS ✅ FIXED
-  =============================== */
-  useEffect(() => {
-    api
-      .get("/users")
-      .then(res => setUsers(res.data))
-      .finally(() => setLoadingUsers(false));
-  }, []);
-
-  /* ===============================
-     LOAD LISTINGS ✅ FIXED
+     LOAD LISTINGS
   =============================== */
   useEffect(() => {
     api
@@ -79,26 +80,11 @@ function AdminDashboard() {
   };
 
   /* ===============================
-     ESCROW ACTIONS ✅ FIXED
+     ESCROW ACTIONS
   =============================== */
-  const updateEscrow = async (id) => {
+  const updateEscrow = async id => {
     await api.patch(`/orders/${id}/complete`);
     setEscrowOrders(o => o.filter(x => x.id !== id));
-  };
-
-  /* ===============================
-     USER VERIFICATION
-  =============================== */
-  const toggleVerification = async (id, verified) => {
-    const res = await api.patch(`/users/${id}/verify`, {
-      verified: !verified
-    });
-
-    setUsers(users =>
-      users.map(u =>
-        u.id === id ? { ...u, verified: res.data.verified } : u
-      )
-    );
   };
 
   /* ===============================
@@ -137,8 +123,62 @@ function AdminDashboard() {
         Admin Dashboard
       </h1>
 
+      {/* ===============================
+          ADMIN OVERVIEW
+      =============================== */}
+      {stats && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+          <StatCard
+            label="Unverified Users"
+            value={stats.users}
+            link="/admin/users"
+          />
+          <StatCard
+            label="Seller Requests"
+            value={stats.seller_requests}
+            link="/admin"
+          />
+          <StatCard
+            label="Withdrawals"
+            value={stats.withdrawals}
+            link="/admin/withdrawals"
+          />
+          <StatCard
+            label="Pending Orders"
+            value={stats.orders}
+            link="/admin/orders"
+          />
+        </div>
+      )}
+      <a
+          href="/admin/listings"
+          className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+        >
+          🏘 Listings Moderation
+        </a>
+      <a
+          href="/admin/seller-requests"
+          className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
+        >
+          🧾 Seller Requests
+        </a>
+      <a
+        href="/admin/orders"
+        className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+      >
+        📦 Escrow Orders
+      </a>
+
+
       {/* QUICK ACTIONS */}
       <div className="mb-10 flex gap-4 flex-wrap">
+        <a
+          href="/admin/users"
+          className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-900"
+        >
+          👤 Manage Users
+        </a>
+
         <a
           href="/admin/withdrawals"
           className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
@@ -160,63 +200,6 @@ function AdminDashboard() {
           📦 Escrow Orders
         </a>
       </div>
-
-      {/* ===============================
-          USERS
-      =============================== */}
-      <section className="mb-14">
-        <h2 className="text-xl font-semibold mb-4">
-          User Verification
-        </h2>
-
-        {loadingUsers ? (
-          <p>Loading users...</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border text-sm">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="p-2 border">Name</th>
-                  <th className="p-2 border">Email</th>
-                  <th className="p-2 border">Role</th>
-                  <th className="p-2 border">Verified</th>
-                  <th className="p-2 border">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map(u => (
-                  <tr key={u.id} className="text-center">
-                    <td className="p-2 border">
-                      {u.first_name} {u.last_name}
-                    </td>
-                    <td className="p-2 border">{u.email}</td>
-                    <td className="p-2 border capitalize">
-                      {u.role.replace("_", " ")}
-                    </td>
-                    <td className="p-2 border">
-                      {u.verified ? "✅ Yes" : "❌ No"}
-                    </td>
-                    <td className="p-2 border">
-                      <button
-                        onClick={() =>
-                          toggleVerification(u.id, u.verified)
-                        }
-                        className={`px-3 py-1 rounded text-white ${
-                          u.verified
-                            ? "bg-red-600"
-                            : "bg-green-600"
-                        }`}
-                      >
-                        {u.verified ? "Unverify" : "Verify"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
 
       {/* ===============================
           SELLER REQUESTS
@@ -279,9 +262,7 @@ function AdminDashboard() {
               key={w.id}
               className="border p-4 mb-4 rounded bg-white"
             >
-              <p className="font-semibold">
-                {w.email}
-              </p>
+              <p className="font-semibold">{w.email}</p>
               <p className="text-sm">
                 Amount: ₦{Number(w.amount).toLocaleString()}
               </p>
@@ -372,7 +353,7 @@ function AdminDashboard() {
                 Amount: ₦{Number(o.amount).toLocaleString()}
               </p>
 
-              <div className="mt-3 flex gap-3">
+              <div className="mt-3">
                 <button
                   onClick={() => updateEscrow(o.id)}
                   className="bg-green-600 text-white px-3 py-1 rounded"
@@ -385,6 +366,21 @@ function AdminDashboard() {
         )}
       </section>
     </PageWrapper>
+  );
+}
+
+/* ===============================
+   STAT CARD
+=============================== */
+function StatCard({ label, value, link }) {
+  return (
+    <a
+      href={link}
+      className="border rounded p-6 bg-white hover:shadow transition"
+    >
+      <p className="text-sm text-gray-500">{label}</p>
+      <p className="text-3xl font-bold mt-2">{value}</p>
+    </a>
   );
 }
 

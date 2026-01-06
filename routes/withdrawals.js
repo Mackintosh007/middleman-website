@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../db");
 const auth = require("../middleware/auth");
+const auditLog = require("../utils/auditLog");
 
 /**
  * POST /withdrawals/request
@@ -46,6 +47,14 @@ router.post("/request", auth, async (req, res) => {
        WHERE user_id = $2`,
       [amount, userId]
     );
+
+    await auditLog({
+      adminId: req.user.id,
+      action: "approve_withdrawal",
+      entityType: "withdrawal",
+      entityId: id
+    });
+
 
     res.json({ success: true, message: "Withdrawal requested" });
 

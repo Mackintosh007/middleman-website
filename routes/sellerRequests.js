@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require("../db");
 const auth = require("../middleware/auth");
 const roles = require("../middleware/roles");
+const auditLog = require("../utils/auditLog");
 
 /**
  * USER: Request to become seller or agent
@@ -112,6 +113,17 @@ router.patch(
           [request.user_id]
         );
       }
+      
+      await auditLog({
+        adminId: req.user.id,
+        action: "approve_seller_request",
+        entityType: "seller_request",
+        entityId: requestId,
+        metadata: {
+          role: request.requested_role
+        }
+      });
+
 
       await client.query("COMMIT");
 

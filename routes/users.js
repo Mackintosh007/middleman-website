@@ -4,6 +4,7 @@ const pool = require("../db");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const auth = require("../middleware/auth");
+const auditLog = require("../utils/auditLog");
 
 /**
  * REGISTER USER
@@ -133,6 +134,15 @@ router.patch("/me", auth, async (req, res) => {
 
   res.json(result.rows[0]);
 });
+
+  await auditLog({
+    adminId: req.user.id,
+    action: "verify_user",
+    entityType: "user",
+    entityId: req.params.id,
+    metadata: { verified: true }
+  });
+
 
 /**
  * PUBLIC SELLER PROFILE

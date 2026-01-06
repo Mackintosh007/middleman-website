@@ -4,6 +4,7 @@ require("dotenv").config();
 const cors = require("cors");
 const cron = require("node-cron");
 const autoReleaseEscrow = require("./jobs/autoReleaseEscrow");
+const auditLogsRouter = require("./routes/adminAuditLogs");
 
 // ⏱ Runs every 15 minutes
 cron.schedule("*/15 * * * *", autoReleaseEscrow);
@@ -53,6 +54,11 @@ app.use("/api/admin", require("./routes/admin"));
 app.use("/api/admin/withdrawals", require("./routes/adminWithdrawals"));
 app.use("/api/admin/kyc", require("./routes/adminKyc"));
 app.use("/api/admin/seller-requests", require("./routes/adminSellerRequests"));
+app.use("/api/admin", require("./routes/adminStats"));
+app.use("/api/admin", require("./routes/adminUsers"));
+app.use("/api/admin/audit-logs", auditLogsRouter);
+
+
 
 
 const PORT = process.env.PORT || 8080;
