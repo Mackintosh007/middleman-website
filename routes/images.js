@@ -32,6 +32,8 @@ router.post(
   async (req, res) => {
     try {
       const { propertyId } = req.params;
+      
+      console.log("FILE:", req.file);
 
       // verify ownership
       const ownerCheck = await pool.query(

@@ -2,72 +2,83 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import PageWrapper from "../components/PageWrapper";
-import { useAuth } from "../context/AuthContext";
-import { LOCATIONS } from "../utils/locations";
 
-function CreateProperty() {
-  const { user } = useAuth();
+function CreateListing() {
   const navigate = useNavigate();
 
-  const [propertyType, setPropertyType] = useState("land");
-  const [title, setTitle] = useState("");
-  const [price, setPrice] = useState("");
-  const [location, setLocation] = useState("");
-  const [description, setDescription] = useState("");
-  const [images, setImages] = useState([]);
+  const [form, setForm] = useState({
+    property_type: "gadget",
+    title: "",
+    location: "",
+    price: "",
+    description: "",
+  });
 
+  const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  if (!user) {
-    return (
-      <PageWrapper>
-        <p className="text-red-600">
-          You must be logged in to create a listing.
-        </p>
-      </PageWrapper>
-    );
-  }
-
-  const handleImageChange = (e) => {
-    setImages([...e.target.files]);
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e) => {
+  const handleImages = (e) => {
+    setImages(Array.from(e.target.files));
+  };
+
+  const submit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
+    setLoading(true);
 
     try {
-      const res = await api.post("/properties", {
-        property_type: propertyType,
-        title,
-        description,
-        location,
-        price,
+      /**
+       * ===============================
+       * 1️⃣ CREATE LISTING FIRST
+       * ===============================
+       */
+      const listingRes = await api.post("/properties", {
+        property_type: form.property_type,
+        title: form.title,
+        location: form.location,
+        price: Number(form.price),
+        description: form.description,
       });
 
-      const propertyId = res.data.id;
+      const propertyId = listingRes.data.id;
 
-      if (images.length > 0) {
+      /**
+       * ===============================
+       * 2️⃣ UPLOAD IMAGES (MAX 5)
+       * ===============================
+       */
+      for (let i = 0; i < images.length; i++) {
         const formData = new FormData();
-        images.forEach((img) =>
-          formData.append("images", img)
-        );
-        formData.append("property_id", propertyId);
+        formData.append("image", images[i]); // ✅ MUST BE "image"
 
-        await api.post("/images/upload", formData, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        });
+        await api.post(
+          `/images/${propertyId}`, // ✅ CORRECT ROUTE
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
       }
 
-      navigate(`/add-property-details/${propertyId}`);
+      /**
+       * ===============================
+       * 3️⃣ DONE
+       * ===============================
+       */
+      alert("Listing created successfully");
+      navigate("/dashboard");
+
     } catch (err) {
+      console.error("CREATE LISTING ERROR:", err);
       setError(
-        err.response?.data?.error ||
-          "Failed to create listing"
+        err.response?.data?.error || "Failed to create listing"
       );
     } finally {
       setLoading(false);
@@ -76,131 +87,89 @@ function CreateProperty() {
 
   return (
     <PageWrapper>
-      <h1 className="text-2xl font-semibold mb-6">
+      <h1 className="text-2xl font-bold mb-6">
         Create New Listing
       </h1>
 
+      {error && (
+        <p className="mb-4 text-red-600">{error}</p>
+      )}
+
       <form
-        onSubmit={handleSubmit}
-        className="max-w-xl space-y-4"
+        onSubmit={submit}
+        className="space-y-4 max-w-lg"
       >
-        {error && (
-          <p className="text-red-600">{error}</p>
-        )}
+        <select
+          name="property_type"
+          className="input"
+          value={form.property_type}
+          onChange={handleChange}
+        >
+          <option value="land">Land</option>
+          <option value="house">House</option>
+          <option value="apartment">Apartment</option>
+          <option value="automobile">Automobile</option>
+          <option value="gadget">Gadget</option>
+          <option value="equipment">Equipment</option>
+          <option value="fashion">Fashion</option>
+          <option value="furniture">Furniture</option>
+          <option value="building_material">Building Material</option>
+        </select>
 
-        <div>
-          <label className="block mb-1 font-medium">
-            Listing Type
-          </label>
-          <select
-            className="input"
-            value={propertyType}
-            onChange={(e) =>
-              setPropertyType(e.target.value)
-            }
-            required
-          >
-            <option value="land">Land</option>
-            <option value="house">House</option>
-            <option value="apartment">Apartment</option>
-            <option value="automobile">Automobile</option>
-            <option value="gadget">Gadget</option>
-            <option value="equipment">Equipment</option>
-            <option value="fashion">Fashion & Wears</option>
-            <option value="furniture">Furniture</option>
-            <option value="building_materials">
-              Building Materials
-            </option>
-          </select>
-        </div>
+        <input
+          name="title"
+          placeholder="Title"
+          className="input"
+          value={form.title}
+          onChange={handleChange}
+          required
+        />
 
-        <div>
-          <label className="block mb-1 font-medium">
-            Title
-          </label>
-          <input
-            className="input"
-            value={title}
-            onChange={(e) =>
-              setTitle(e.target.value)
-            }
-            required
-          />
-        </div>
+        <input
+          name="location"
+          placeholder="Location"
+          className="input"
+          value={form.location}
+          onChange={handleChange}
+          required
+        />
 
-        <div>
-          <label className="block mb-1 font-medium">
-            Location
-          </label>
-          <select
-            className="input"
-            value={location}
-            onChange={(e) =>
-              setLocation(e.target.value)
-            }
-            required
-          >
-            <option value="">Select a location</option>
-            {LOCATIONS.map((loc) => (
-              <option key={loc} value={loc}>
-                {loc}
-              </option>
-            ))}
-          </select>
-        </div>
+        <input
+          name="price"
+          type="number"
+          placeholder="Price (₦)"
+          className="input"
+          value={form.price}
+          onChange={handleChange}
+          required
+        />
 
-        <div>
-          <label className="block mb-1 font-medium">
-            Price (₦)
-          </label>
-          <input
-            type="number"
-            className="input"
-            value={price}
-            onChange={(e) =>
-              setPrice(e.target.value)
-            }
-            required
-          />
-        </div>
+        <textarea
+          name="description"
+          placeholder="Description"
+          className="input"
+          rows={4}
+          value={form.description}
+          onChange={handleChange}
+          required
+        />
 
-        <div>
-          <label className="block mb-1 font-medium">
-            Description
-          </label>
-          <textarea
-            className="input h-28"
-            value={description}
-            onChange={(e) =>
-              setDescription(e.target.value)
-            }
-          />
-        </div>
-
-        <div>
-          <label className="block mb-1 font-medium">
-            Listing Images
-          </label>
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={handleImageChange}
-          />
-        </div>
+        <input
+          type="file"
+          multiple
+          accept="image/*"
+          onChange={handleImages}
+        />
 
         <button
-          type="submit"
           disabled={loading}
           className="btn-primary"
         >
-          {loading
-            ? "Creating..."
-            : "Create Listing"}
+          {loading ? "Creating..." : "Create Listing"}
         </button>
       </form>
     </PageWrapper>
   );
 }
 
-export default CreateProperty;
+export default CreateListing;
