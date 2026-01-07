@@ -166,9 +166,11 @@ function AddPropertyDetails() {
         <ApartmentForm propertyId={id} onSuccess={onSuccess} />
       )}
 
-      {property.property_type === "gadget_equipment" && (
-        <GadgetForm propertyId={id} onSuccess={onSuccess} />
+      {(property.property_type === "gadget" ||
+          property.property_type === "equipment") && (
+          <GadgetForm propertyId={id} onSuccess={onSuccess} />
       )}
+
 
       {property.property_type === "car" && (
         <AutomobileForm propertyId={id} onSuccess={onSuccess} />
