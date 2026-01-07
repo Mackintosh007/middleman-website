@@ -56,12 +56,13 @@ function Navbar() {
       {/* ===== TOP NAV ===== */}
       <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
         {/* LOGO */}
-        <Link
-          to="/"
+        <button
+          onClick={() => navigate("/", { replace: true })}
           className="text-xl font-bold text-blue-600"
         >
           Middleman
-        </Link>
+        </button>
+
 
         {/* SEARCH */}
         <form

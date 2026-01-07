@@ -7,7 +7,6 @@ import { LOCATIONS } from "../utils/locations";
 import SEO from "../components/SEO";
 import marketplaceBg from "../assets/marketplace.jpg";
 
-
 const CATEGORIES = [
   { label: "All", value: "all" },
   { label: "Land", value: "land" },
@@ -54,6 +53,19 @@ function Home() {
   }, [locationObj.search]);
 
   /* ===============================
+     RESET STATE WHEN URL IS CLEAN (/)
+     ✅ THIS IS THE FIX
+  =============================== */
+  useEffect(() => {
+    if (!locationObj.search) {
+      setCategory("all");
+      setKeyword("");
+      setLocation("");
+      setMaxPrice("");
+    }
+  }, [locationObj.search]);
+
+  /* ===============================
      FETCH LISTINGS (UNCHANGED)
   =============================== */
   useEffect(() => {
@@ -85,10 +97,7 @@ function Home() {
   const filteredListings = listings.filter((item) => {
     if (!item) return false;
 
-    if (
-      category !== "all" &&
-      item.property_type !== category
-    ) {
+    if (category !== "all" && item.property_type !== category) {
       return false;
     }
 
@@ -96,10 +105,7 @@ function Home() {
       return false;
     }
 
-    if (
-      maxPrice &&
-      Number(item.price) > Number(maxPrice)
-    ) {
+    if (maxPrice && Number(item.price) > Number(maxPrice)) {
       return false;
     }
 
@@ -131,21 +137,16 @@ function Home() {
       {/* ================= HERO ================= */}
       <section
         className="relative border-b bg-cover bg-center"
-        style={{
-          backgroundImage: `url(${marketplaceBg})`,
-        }}
+        style={{ backgroundImage: `url(${marketplaceBg})` }}
       >
-        {/* DARK OVERLAY */}
         <div className="absolute inset-0 bg-black/50"></div>
 
-        {/* CONTENT */}
         <div className="relative">
           <div className="max-w-7xl mx-auto px-6 py-20 text-center">
             <h1 className="text-4xl md:text-5xl font-bold text-white">
               <span className="block text-lg md:text-xl font-bold text-gray-200 mb-3">
                 Omoku and ONELGA Marketplace
               </span>
-
               Buy, Sell & Rent Safely — <br />
               <span className="text-blue-300">
                 Properties, Cars, Clothings & Gadgets
@@ -158,7 +159,6 @@ function Home() {
               when needed.
             </p>
 
-            {/* SEARCH BAR (UNCHANGED UI) */}
             <div className="mt-10 max-w-3xl mx-auto bg-white/90 p-4 rounded-xl border">
               <form
                 onSubmit={(e) => e.preventDefault()}
@@ -167,9 +167,7 @@ function Home() {
                 <select
                   className="w-full px-3 py-2 border rounded-lg bg-white cursor-pointer"
                   value={location}
-                  onChange={(e) =>
-                    setLocation(e.target.value)
-                  }
+                  onChange={(e) => setLocation(e.target.value)}
                 >
                   <option value="">All locations</option>
                   {LOCATIONS.map((loc) => (
@@ -182,9 +180,7 @@ function Home() {
                 <select
                   className="w-full px-3 py-2 border rounded-lg bg-white cursor-pointer"
                   value={category}
-                  onChange={(e) =>
-                    setCategory(e.target.value)
-                  }
+                  onChange={(e) => setCategory(e.target.value)}
                 >
                   {CATEGORIES.map((c) => (
                     <option key={c.value} value={c.value}>
@@ -198,14 +194,10 @@ function Home() {
                   placeholder="Max price"
                   className="w-full px-3 py-2 border rounded-lg"
                   value={maxPrice}
-                  onChange={(e) =>
-                    setMaxPrice(e.target.value)
-                  }
+                  onChange={(e) => setMaxPrice(e.target.value)}
                 />
 
-                <button className="btn-primary">
-                  Search
-                </button>
+                <button className="btn-primary">Search</button>
               </form>
             </div>
           </div>
@@ -219,22 +211,15 @@ function Home() {
         </h2>
 
         {loading ? (
-          <p className="text-gray-500">
-            Loading listings…
-          </p>
+          <p className="text-gray-500">Loading listings…</p>
         ) : error ? (
           <p className="text-red-600">{error}</p>
         ) : filteredListings.length === 0 ? (
-          <p className="text-gray-500">
-            No listings found.
-          </p>
+          <p className="text-gray-500">No listings found.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredListings.map((item) => (
-              <PropertyCard
-                key={item.id}
-                property={item}
-              />
+              <PropertyCard key={item.id} property={item} />
             ))}
           </div>
         )}

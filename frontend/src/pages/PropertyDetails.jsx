@@ -117,15 +117,20 @@ function PropertyDetails() {
 
             {images.length > 1 && (
               <div className="grid grid-cols-3 gap-3 mt-4">
-                {images.slice(1).map((img) => (
-                  <img
-                    key={img.id}
-                    src={img.image_url}
-                    alt={property.title}
-                    className="h-28 w-full object-cover rounded border cursor-pointer hover:opacity-80"
-                  />
-                ))}
-              </div>
+                  {images.slice(1).map((img) => (
+                    <div
+                      key={img.id}
+                      className="h-28 w-full bg-gray-100 rounded border flex items-center justify-center overflow-hidden cursor-pointer hover:opacity-80"
+                    >
+                      <img
+                        src={img.image_url}
+                        alt={property.title}
+                        className="max-w-full max-h-full object-contain"
+                      />
+                    </div>
+                  ))}
+                    </div>
+
             )}
           </div>
 
