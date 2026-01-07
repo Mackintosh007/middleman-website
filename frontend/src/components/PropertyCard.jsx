@@ -1,17 +1,13 @@
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import api from "../api/axios";
 
 function PropertyCard({ property }) {
-  // 🔒 SAFETY NORMALIZATION
+  // 🔒 SAFETY NORMALIZATION (UNCHANGED)
   const title =
     property.title ||
     property.name ||
     "Untitled Listing";
-
-  const image =
-    property.image ||
-    property.thumbnail ||
-    property.images?.[0] ||
-    "https://via.placeholder.com/400x250?text=No+Image";
 
   const location =
     property.location ||
@@ -30,6 +26,52 @@ function PropertyCard({ property }) {
     property.type ||
     "listing";
 
+  // ✅ ADD: local image state (non-breaking)
+  const [image, setImage] = useState(
+    property.image ||
+      property.thumbnail ||
+      property.images?.[0] ||
+      null
+  );
+
+  /* ===============================
+     LOAD IMAGE IF NOT PRESENT
+     (SAFE, MINIMAL, NON-BREAKING)
+  =============================== */
+  useEffect(() => {
+    if (image || !property?.id) return;
+
+    let isMounted = true;
+
+    const loadImage = async () => {
+      try {
+        const res = await api.get(
+          `/images/${property.id}`
+        );
+
+        if (
+          isMounted &&
+          Array.isArray(res.data) &&
+          res.data.length > 0
+        ) {
+          setImage(res.data[0].image_url);
+        }
+      } catch {
+        // fail silently (fallback will show)
+      }
+    };
+
+    loadImage();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [property.id, image]);
+
+  const finalImage =
+    image ||
+    "https://via.placeholder.com/400x250?text=No+Image";
+
   return (
     <Link
       to={`/properties/${property.id}`}
@@ -37,7 +79,7 @@ function PropertyCard({ property }) {
     >
       {/* IMAGE */}
       <img
-        src={image}
+        src={finalImage}
         alt={title}
         className="w-full h-48 object-cover"
       />
