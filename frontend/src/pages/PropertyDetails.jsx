@@ -17,9 +17,8 @@ function PropertyDetails() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // ✅ HARD GUARD: id MUST exist
+    // 🔒 HARD GUARD
     if (!id) {
-      setLoading(false);
       navigate("/my-properties", { replace: true });
       return;
     }
@@ -40,7 +39,7 @@ function PropertyDetails() {
           if (mounted) setImages([]);
         }
       } catch (err) {
-        // ✅ HANDLE DELETED / NON-EXISTENT PROPERTY
+        // ✅ HANDLE DELETED PROPERTY
         if (err.response?.status === 404) {
           navigate("/my-properties", { replace: true });
           return;
@@ -76,7 +75,7 @@ function PropertyDetails() {
   }
 
   /* ===============================
-     CTA RULES (UNCHANGED)
+     CTA RULES
   =============================== */
   const isOwner =
     user && Number(user.id) === Number(property.owner_id);
@@ -96,7 +95,7 @@ function PropertyDetails() {
   const mainImage =
     images.length > 0
       ? images[0].image_url
-      : "/no-image.png"; // local fallback
+      : "/no-image.png";
 
   return (
     <>
@@ -108,32 +107,37 @@ function PropertyDetails() {
 
       <PageWrapper>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+          {/* ================= IMAGE SECTION ================= */}
           <div>
-            <img
-              src={mainImage}
-              alt={property.title}
-              className="w-full h-96 object-cover rounded-lg"
-            />
+            {/* ✅ MAIN IMAGE (NO ZOOM, NO CROP) */}
+            <div className="w-full h-96 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+              <img
+                src={mainImage}
+                alt={property.title}
+                className="max-w-full max-h-full object-contain"
+              />
+            </div>
 
+            {/* ✅ IMAGE GALLERY */}
             {images.length > 1 && (
               <div className="grid grid-cols-3 gap-3 mt-4">
-                  {images.slice(1).map((img) => (
-                    <div
-                      key={img.id}
-                      className="h-28 w-full bg-gray-100 rounded border flex items-center justify-center overflow-hidden cursor-pointer hover:opacity-80"
-                    >
-                      <img
-                        src={img.image_url}
-                        alt={property.title}
-                        className="max-w-full max-h-full object-contain"
-                      />
-                    </div>
-                  ))}
-                    </div>
-
+                {images.slice(1).map((img) => (
+                  <div
+                    key={img.id}
+                    className="h-28 w-full bg-gray-100 rounded border flex items-center justify-center overflow-hidden cursor-pointer hover:opacity-80"
+                  >
+                    <img
+                      src={img.image_url}
+                      alt={property.title}
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  </div>
+                ))}
+              </div>
             )}
           </div>
 
+          {/* ================= DETAILS ================= */}
           <div>
             <h1 className="text-3xl font-bold">
               {property.title}
@@ -161,6 +165,12 @@ function PropertyDetails() {
               {property.revenue_type === "commission" && (
                 <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
                   Negotiation
+                </span>
+              )}
+
+              {property.condition && (
+                <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded capitalize">
+                  {property.condition}
                 </span>
               )}
             </div>
