@@ -35,6 +35,8 @@ import Withdraw from "./pages/Withdraw";
 import VerifyBank from "./pages/VerifyBank";
 import VerifyEmail from "./pages/VerifyEmail";
 import ResendVerification from "./pages/ResendVerification";
+import PaymentSuccess from "./pages/PaymentSuccess";
+
 
 
 /* ADMIN */
@@ -77,6 +79,8 @@ function App() {
         <Route path="/contact" element={<Contact />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/resend-verification" element={<ResendVerification />} />
+        <Route path="/payment-success" element={<PaymentSuccess />} />
+
 
 
 

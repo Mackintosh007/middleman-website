@@ -19,7 +19,7 @@ router.post(
         description,
         location,
         price,
-        condition // ✅ ADD
+        condition
       } = req.body;
 
       let revenue_type = "commission";
@@ -36,7 +36,6 @@ router.post(
         revenue_type = "escrow";
       }
 
-      // ✅ SAFE VALIDATION (NON-BREAKING)
       if (condition && !["new", "used"].includes(condition)) {
         return res.status(400).json({ error: "Invalid condition" });
       }
@@ -54,7 +53,7 @@ router.post(
           location,
           price,
           revenue_type,
-          condition || null // ✅ ADD
+          condition || null
         ]
       );
 
@@ -126,9 +125,7 @@ router.get("/:id", async (req, res) => {
 });
 
 /**
- * ===============================
- * GET PROPERTY STATUS (PUBLIC, SAFE)
- * ===============================
+ * GET PROPERTY STATUS
  */
 router.get("/:id/status", async (req, res) => {
   try {
@@ -143,13 +140,12 @@ router.get("/:id/status", async (req, res) => {
 
     res.json({ status: result.rows[0].status });
   } catch (err) {
-    console.error("STATUS LOAD ERROR:", err);
     res.status(500).json({ error: "Failed to load status" });
   }
 });
 
 /**
- * UPDATE PROPERTY STATUS
+ * UPDATE PROPERTY STATUS (ESCROW-SAFE)
  */
 router.patch(
   "/:id/status",
@@ -165,7 +161,7 @@ router.patch(
       }
 
       const propRes = await pool.query(
-        "SELECT owner_id FROM properties WHERE id = $1",
+        "SELECT id, owner_id, status FROM properties WHERE id = $1",
         [propertyId]
       );
 
@@ -175,11 +171,42 @@ router.patch(
 
       const property = propRes.rows[0];
 
+      // 🔐 OWNER / ADMIN CHECK
       if (
         req.user.role !== "admin" &&
         Number(property.owner_id) !== Number(req.user.id)
       ) {
         return res.status(403).json({ error: "Unauthorized" });
+      }
+
+      // 🔒 LOCK 1: PROPERTY STATUS LOCK
+      if (
+        property.status === "pending" ||
+        property.status === "sold"
+      ) {
+        return res.status(403).json({
+          error:
+            "This listing is locked due to an escrow transaction"
+        });
+      }
+
+      // 🔒 LOCK 2: ORDER-BASED ESCROW LOCK
+      const orderLock = await pool.query(
+        `
+        SELECT 1
+        FROM orders
+        WHERE property_id = $1
+        AND status IN ('pending', 'paid')
+        LIMIT 1
+        `,
+        [propertyId]
+      );
+
+      if (orderLock.rows.length > 0) {
+        return res.status(403).json({
+          error:
+            "This listing has an active escrow order and cannot be reactivated"
+        });
       }
 
       const result = await pool.query(

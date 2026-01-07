@@ -12,6 +12,34 @@ const DELIVERY_FEE = 800;
 
 /**
  * ===============================
+ * GET MY ORDERS (BUYER / SELLER)
+ * ===============================
+ */
+router.get("/my", auth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `
+      SELECT 
+        o.*,
+        p.title,
+        p.revenue_type
+      FROM orders o
+      JOIN properties p ON p.id = o.property_id
+      WHERE o.buyer_id = $1 OR o.seller_id = $1
+      ORDER BY o.created_at DESC
+      `,
+      [req.user.id]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("GET MY ORDERS ERROR:", err);
+    res.status(500).json({ error: "Unable to fetch orders" });
+  }
+});
+
+/**
+ * ===============================
  * CREATE ESCROW ORDER
  * ===============================
  */
@@ -143,10 +171,6 @@ router.post("/:id/pay", auth, async (req, res) => {
         },
       }
     );
-
-    // ❗ IMPORTANT:
-    // DO NOT mark order as "paid" here.
-    // That must happen in the Paystack webhook after successful payment.
 
     res.json({
       authorization_url: payRes.data.data.authorization_url,
