@@ -102,21 +102,49 @@ router.get("/mine", auth, async (req, res) => {
  * GET SINGLE PROPERTY
  */
 router.get("/:id", async (req, res) => {
-  const result = await pool.query(
-    "SELECT * FROM properties WHERE id = $1",
-    [req.params.id]
-  );
+  try {
+    const result = await pool.query(
+      "SELECT * FROM properties WHERE id = $1",
+      [req.params.id]
+    );
 
-  if (!result.rows.length) {
-    return res.status(404).json({ error: "Property not found" });
+    if (!result.rows.length) {
+      return res.status(404).json({ error: "Property not found" });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-
-  res.json(result.rows[0]);
 });
 
 /**
  * ===============================
- * ADMIN / SELLER: UPDATE PROPERTY STATUS ✅ FIXED
+ * GET PROPERTY STATUS (PUBLIC, SAFE)
+ * ===============================
+ * GET /properties/:id/status
+ */
+router.get("/:id/status", async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT status FROM properties WHERE id = $1",
+      [req.params.id]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ error: "Property not found" });
+    }
+
+    res.json({ status: result.rows[0].status });
+  } catch (err) {
+    console.error("STATUS LOAD ERROR:", err);
+    res.status(500).json({ error: "Failed to load status" });
+  }
+});
+
+/**
+ * ===============================
+ * ADMIN / SELLER: UPDATE PROPERTY STATUS
  * ===============================
  * PATCH /properties/:id/status
  */
@@ -133,7 +161,6 @@ router.patch(
         return res.status(400).json({ error: "Invalid status" });
       }
 
-      // Load property
       const propRes = await pool.query(
         "SELECT owner_id FROM properties WHERE id = $1",
         [propertyId]
@@ -145,10 +172,9 @@ router.patch(
 
       const property = propRes.rows[0];
 
-      // Only owner or admin can change status
       if (
         req.user.role !== "admin" &&
-        property.owner_id !== req.user.id
+        Number(property.owner_id) !== Number(req.user.id)
       ) {
         return res.status(403).json({ error: "Unauthorized" });
       }
@@ -162,7 +188,6 @@ router.patch(
       );
 
       res.json(result.rows[0]);
-
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

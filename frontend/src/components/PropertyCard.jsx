@@ -26,7 +26,7 @@ function PropertyCard({ property }) {
     property.type ||
     "listing";
 
-  // ✅ ADD: local image state (non-breaking)
+  // ✅ IMAGE STATE (UNCHANGED)
   const [image, setImage] = useState(
     property.image ||
       property.thumbnail ||
@@ -36,7 +36,7 @@ function PropertyCard({ property }) {
 
   /* ===============================
      LOAD IMAGE IF NOT PRESENT
-     (SAFE, MINIMAL, NON-BREAKING)
+     (UNCHANGED)
   =============================== */
   useEffect(() => {
     if (image || !property?.id) return;
@@ -45,9 +45,7 @@ function PropertyCard({ property }) {
 
     const loadImage = async () => {
       try {
-        const res = await api.get(
-          `/images/${property.id}`
-        );
+        const res = await api.get(`/images/${property.id}`);
 
         if (
           isMounted &&
@@ -57,7 +55,7 @@ function PropertyCard({ property }) {
           setImage(res.data[0].image_url);
         }
       } catch {
-        // fail silently (fallback will show)
+        // fail silently
       }
     };
 
@@ -77,31 +75,29 @@ function PropertyCard({ property }) {
       to={`/properties/${property.id}`}
       className="card overflow-hidden hover:shadow-lg transition block bg-white rounded-lg border"
     >
-      {/* IMAGE */}
-      <img
-        src={finalImage}
-        alt={title}
-        className="w-full h-48 object-cover"
-      />
+      {/* IMAGE (FIXED RENDERING) */}
+      <div className="w-full h-48 bg-gray-100 flex items-center justify-center">
+        <img
+          src={finalImage}
+          alt={title}
+          className="max-w-full max-h-full object-contain"
+        />
+      </div>
 
       {/* CONTENT */}
       <div className="p-4">
-        {/* TITLE */}
         <h3 className="font-semibold text-lg truncate">
           {title}
         </h3>
 
-        {/* LOCATION */}
         <p className="text-sm text-gray-500">
           {location}
         </p>
 
-        {/* PRICE */}
         <p className="mt-3 text-blue-600 font-bold">
           ₦{price.toLocaleString()}
         </p>
 
-        {/* 🔹 REVENUE TYPE BADGE */}
         {property.revenue_type === "commission" && (
           <span className="inline-block mt-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
             Negotiation
@@ -114,7 +110,6 @@ function PropertyCard({ property }) {
           </span>
         )}
 
-        {/* CATEGORY */}
         <span className="block mt-2 text-xs text-gray-500 capitalize">
           {category.toString().replace(/_/g, " ")}
         </span>
