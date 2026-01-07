@@ -12,6 +12,20 @@ const auditLogsRouter = require("./routes/adminAuditLogs");
 cron.schedule("*/15 * * * *", autoReleaseEscrow);
 
 app.use(cors());
+
+/* ===============================
+   PAYSTACK WEBHOOK (RAW BODY)
+   ⚠️ MUST COME BEFORE express.json()
+=============================== */
+app.use(
+  "/api/webhook",
+  express.raw({ type: "*/*" }),
+  require("./routes/paystackWebhook")
+);
+
+/* ===============================
+   GLOBAL JSON PARSER
+=============================== */
 app.use(express.json());
 
 /* ===============================
@@ -59,8 +73,6 @@ app.use("/api/wallet", require("./routes/wallet"));
 app.use("/api/withdrawals", require("./routes/withdrawals"));
 app.use("/api/bank", require("./routes/bankVerification"));
 app.use("/api/kyc", require("./routes/kyc"));
-app.use("/api/webhook", require("./routes/paystackWebhook"));
-
 
 /* ===============================
    ADMIN (GROUPED CLEANLY)

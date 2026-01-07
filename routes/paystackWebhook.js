@@ -32,6 +32,9 @@ router.post(
       }
 
       const event = JSON.parse(req.body.toString());
+      console.log("✅ Webhook received:", event.event);
+      console.log("📦 Full event data:", event.data);
+      console.log("🧾 Metadata:", event.data?.metadata);
 
       // ✅ Only handle successful charges
       if (event.event !== "charge.success") {
