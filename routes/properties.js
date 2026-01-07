@@ -194,4 +194,48 @@ router.patch(
   }
 );
 
+/**
+ * ===============================
+ * DELETE PROPERTY (OWNER / ADMIN)
+ * ===============================
+ * DELETE /properties/:id
+ */
+router.delete(
+  "/:id",
+  auth,
+  roles("admin", "agent", "individual_seller"),
+  async (req, res) => {
+    try {
+      const propertyId = req.params.id;
+
+      const propRes = await pool.query(
+        "SELECT owner_id FROM properties WHERE id = $1",
+        [propertyId]
+      );
+
+      if (!propRes.rows.length) {
+        return res.status(404).json({ error: "Property not found" });
+      }
+
+      const property = propRes.rows[0];
+
+      if (
+        req.user.role !== "admin" &&
+        Number(property.owner_id) !== Number(req.user.id)
+      ) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+
+      await pool.query(
+        "DELETE FROM properties WHERE id = $1",
+        [propertyId]
+      );
+
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
 module.exports = router;
