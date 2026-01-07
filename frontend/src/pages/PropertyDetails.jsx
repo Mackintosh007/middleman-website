@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import PageWrapper from "../components/PageWrapper";
 import EscrowBuyButton from "../components/EscrowBuyButton";
@@ -9,6 +9,7 @@ import SEO from "../components/SEO";
 
 function PropertyDetails() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
 
   const [property, setProperty] = useState(null);
@@ -16,27 +17,46 @@ function PropertyDetails() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // ✅ CRITICAL GUARD: prevent /properties/undefined
+    if (!id) return;
+
+    let mounted = true;
+
     const fetchProperty = async () => {
       try {
         const res = await api.get(`/properties/${id}`);
+        if (!mounted) return;
+
         setProperty(res.data);
 
-        // ✅ FIX: correct images endpoint
+        // load images (safe)
         try {
           const imgRes = await api.get(`/images/${id}`);
-          setImages(imgRes.data || []);
+          if (mounted) {
+            setImages(imgRes.data || []);
+          }
         } catch {
-          setImages([]);
+          if (mounted) setImages([]);
         }
       } catch (err) {
+        // ✅ HANDLE DELETED / NON-EXISTENT PROPERTY
+        if (err.response?.status === 404) {
+          navigate("/my-properties", { replace: true });
+          return;
+        }
+
         console.error("Failed to load property", err);
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
 
     fetchProperty();
-  }, [id]);
+
+    return () => {
+      mounted = false;
+    };
+  }, [id, navigate]);
 
   if (loading) {
     return (
@@ -57,7 +77,9 @@ function PropertyDetails() {
   /* ===============================
      CTA RULES (UNCHANGED)
   =============================== */
-  const isOwner = user && Number(user.id) === Number(property.owner_id);
+  const isOwner =
+    user && Number(user.id) === Number(property.owner_id);
+
   const isActive = property.status === "active";
 
   const showEscrowCTA =
@@ -70,7 +92,7 @@ function PropertyDetails() {
     !isOwner &&
     isActive;
 
-  // ✅ FIX: derive main image from uploaded images
+  // main image (unchanged logic)
   const mainImage =
     images.length > 0
       ? images[0].image_url
@@ -88,14 +110,12 @@ function PropertyDetails() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
           {/* IMAGE SECTION */}
           <div>
-            {/* MAIN IMAGE */}
             <img
               src={mainImage}
               alt={property.title}
               className="w-full h-96 object-cover rounded-lg"
             />
 
-            {/* IMAGE GALLERY */}
             {images.length > 1 && (
               <div className="grid grid-cols-3 gap-3 mt-4">
                 {images.slice(1).map((img) => (
