@@ -26,7 +26,7 @@ function PropertyCard({ property }) {
     property.type ||
     "listing";
 
-  // ✅ IMAGE STATE (UNCHANGED)
+  // IMAGE STATE (UNCHANGED)
   const [image, setImage] = useState(
     property.image ||
       property.thumbnail ||
@@ -34,10 +34,6 @@ function PropertyCard({ property }) {
       null
   );
 
-  /* ===============================
-     LOAD IMAGE IF NOT PRESENT
-     (UNCHANGED)
-  =============================== */
   useEffect(() => {
     if (image || !property?.id) return;
 
@@ -54,16 +50,11 @@ function PropertyCard({ property }) {
         ) {
           setImage(res.data[0].image_url);
         }
-      } catch {
-        // fail silently
-      }
+      } catch {}
     };
 
     loadImage();
-
-    return () => {
-      isMounted = false;
-    };
+    return () => (isMounted = false);
   }, [property.id, image]);
 
   const finalImage =
@@ -75,12 +66,12 @@ function PropertyCard({ property }) {
       to={`/properties/${property.id}`}
       className="card overflow-hidden hover:shadow-lg transition block bg-white rounded-lg border"
     >
-      {/* IMAGE (FIXED RENDERING) */}
+      {/* IMAGE — FORCE OVERRIDE */}
       <div className="w-full h-48 bg-gray-100 flex items-center justify-center">
         <img
           src={finalImage}
           alt={title}
-          className="max-w-full max-h-full object-contain"
+          className="max-w-full max-h-full !object-contain"
         />
       </div>
 
