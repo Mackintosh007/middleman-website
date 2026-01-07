@@ -115,12 +115,23 @@ function CreateListing() {
           required
         >
           <option value="">Listing Type</option>
-          <option value="gadget">Gadget</option>
+
           <option value="land">Land</option>
           <option value="house">House</option>
           <option value="apartment">Apartment</option>
-          <option value="automobile">Automobile</option>
+
+          {/* DB uses `car`, NOT `automobile` */}
+          <option value="car">Automobile</option>
+
+          <option value="gadget">Gadgets</option>
+          <option value="equipment">Equipment</option>
+          <option value="fashion">Fashion</option>
+          <option value="furniture">Furniture</option>
+          <option value="building_materials">
+            Building Materials
+          </option>
         </select>
+
 
         {/* CONDITION */}
         <select
