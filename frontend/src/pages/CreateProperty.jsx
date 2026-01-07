@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import PageWrapper from "../components/PageWrapper";
+import { LOCATIONS } from "../utils/locations"; // ✅ ADD
 
 function CreateListing() {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ function CreateListing() {
     location: "",
     price: "",
     description: "",
+    condition: "" // ✅ already added
   });
 
   const [images, setImages] = useState([]);
@@ -60,6 +62,7 @@ function CreateListing() {
         location: form.location,
         price: form.price,
         description: form.description,
+        condition: form.condition || null
       });
 
       const propertyId = propertyRes.data.id;
@@ -70,25 +73,15 @@ function CreateListing() {
       const formData = new FormData();
 
       images.forEach((file) => {
-        formData.append("images", file); // ✅ MUST be "images"
+        formData.append("images", file);
       });
 
-      await api.post(
-        `/images/upload/${propertyId}`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
+      await api.post(`/images/upload/${propertyId}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
 
-      /* ===============================
-         DONE
-      =============================== */
       alert("Listing created successfully");
       navigate("/dashboard");
-
     } catch (err) {
       console.error("CREATE LISTING ERROR:", err);
       setError(
@@ -114,6 +107,7 @@ function CreateListing() {
 
       <form onSubmit={submit} className="space-y-4 max-w-lg">
 
+        {/* CATEGORY */}
         <select
           name="category"
           className="input"
@@ -128,6 +122,18 @@ function CreateListing() {
           <option value="automobile">Automobile</option>
         </select>
 
+        {/* CONDITION */}
+        <select
+          name="condition"
+          className="input"
+          onChange={handleChange}
+        >
+          <option value="">Condition (optional)</option>
+          <option value="new">New</option>
+          <option value="used">Used</option>
+        </select>
+
+        {/* TITLE */}
         <input
           name="title"
           placeholder="Title"
@@ -136,13 +142,22 @@ function CreateListing() {
           required
         />
 
-        <input
+        {/* LOCATION (✅ DROPDOWN) */}
+        <select
           name="location"
-          placeholder="Location"
           className="input"
+          value={form.location}
           onChange={handleChange}
-        />
+        >
+          <option value="">Select location</option>
+          {LOCATIONS.map((loc) => (
+            <option key={loc} value={loc}>
+              {loc}
+            </option>
+          ))}
+        </select>
 
+        {/* PRICE */}
         <input
           name="price"
           type="number"
@@ -152,6 +167,7 @@ function CreateListing() {
           required
         />
 
+        {/* DESCRIPTION */}
         <textarea
           name="description"
           placeholder="Description"
@@ -159,6 +175,7 @@ function CreateListing() {
           onChange={handleChange}
         />
 
+        {/* IMAGES */}
         <input
           type="file"
           multiple

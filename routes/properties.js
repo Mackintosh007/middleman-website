@@ -18,7 +18,8 @@ router.post(
         title,
         description,
         location,
-        price
+        price,
+        condition // ✅ ADD
       } = req.body;
 
       let revenue_type = "commission";
@@ -35,10 +36,15 @@ router.post(
         revenue_type = "escrow";
       }
 
+      // ✅ SAFE VALIDATION (NON-BREAKING)
+      if (condition && !["new", "used"].includes(condition)) {
+        return res.status(400).json({ error: "Invalid condition" });
+      }
+
       const result = await pool.query(
         `INSERT INTO properties
-         (owner_id, property_type, title, description, location, price, revenue_type)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)
+         (owner_id, property_type, title, description, location, price, revenue_type, condition)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
          RETURNING *`,
         [
           req.user.id,
@@ -47,7 +53,8 @@ router.post(
           description,
           location,
           price,
-          revenue_type
+          revenue_type,
+          condition || null // ✅ ADD
         ]
       );
 
@@ -122,7 +129,6 @@ router.get("/:id", async (req, res) => {
  * ===============================
  * GET PROPERTY STATUS (PUBLIC, SAFE)
  * ===============================
- * GET /properties/:id/status
  */
 router.get("/:id/status", async (req, res) => {
   try {
@@ -143,10 +149,7 @@ router.get("/:id/status", async (req, res) => {
 });
 
 /**
- * ===============================
- * ADMIN / SELLER: UPDATE PROPERTY STATUS
- * ===============================
- * PATCH /properties/:id/status
+ * UPDATE PROPERTY STATUS
  */
 router.patch(
   "/:id/status",
@@ -195,10 +198,7 @@ router.patch(
 );
 
 /**
- * ===============================
- * DELETE PROPERTY (OWNER / ADMIN)
- * ===============================
- * DELETE /properties/:id
+ * DELETE PROPERTY
  */
 router.delete(
   "/:id",

@@ -17,12 +17,28 @@ function AddPropertyDetails() {
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
 
+  // ✅ ADD: base editable fields (MATCH CREATE LISTING)
+  const [baseForm, setBaseForm] = useState({
+    title: "",
+    location: "",
+    price: "",
+    description: "",
+    condition: ""
+  });
+
   /* ===============================
      LOAD PROPERTY
   =============================== */
   useEffect(() => {
     api.get(`/properties/${id}`).then(res => {
       setProperty(res.data);
+      setBaseForm({
+        title: res.data.title || "",
+        location: res.data.location || "",
+        price: res.data.price || "",
+        description: res.data.description || "",
+        condition: res.data.condition || ""
+      });
     });
   }, [id]);
 
@@ -37,6 +53,30 @@ function AddPropertyDetails() {
 
   const onSuccess = () => {
     navigate(`/properties/${id}`);
+  };
+
+  /* ===============================
+     UPDATE BASE DETAILS (SAFE)
+  =============================== */
+  const updateBaseDetails = async (e) => {
+    e.preventDefault();
+
+    try {
+      await api.patch(`/properties/${id}`, {
+        title: baseForm.title,
+        location: baseForm.location,
+        price: Number(baseForm.price),
+        description: baseForm.description,
+        condition: baseForm.condition || null
+      });
+
+      alert("Details updated successfully");
+    } catch (err) {
+      alert(
+        err.response?.data?.error ||
+        "Failed to update details"
+      );
+    }
   };
 
   /* ===============================
@@ -91,7 +131,68 @@ function AddPropertyDetails() {
       </h1>
 
       {/* ===============================
-          UPLOAD IMAGE
+          BASE DETAILS (MATCH CREATE)
+      =============================== */}
+      <form onSubmit={updateBaseDetails} className="space-y-4 mb-8">
+        <input
+          className="input"
+          placeholder="Title"
+          value={baseForm.title}
+          onChange={(e) =>
+            setBaseForm({ ...baseForm, title: e.target.value })
+          }
+          required
+        />
+
+        <input
+          className="input"
+          placeholder="Location"
+          value={baseForm.location}
+          onChange={(e) =>
+            setBaseForm({ ...baseForm, location: e.target.value })
+          }
+        />
+
+        <input
+          type="number"
+          className="input"
+          placeholder="Price"
+          value={baseForm.price}
+          onChange={(e) =>
+            setBaseForm({ ...baseForm, price: e.target.value })
+          }
+          required
+        />
+
+        <textarea
+          className="input"
+          placeholder="Description"
+          value={baseForm.description}
+          onChange={(e) =>
+            setBaseForm({ ...baseForm, description: e.target.value })
+          }
+        />
+
+        {/* ✅ CONDITION (NEW / OLD) */}
+        <select
+          className="input"
+          value={baseForm.condition}
+          onChange={(e) =>
+            setBaseForm({ ...baseForm, condition: e.target.value })
+          }
+        >
+          <option value="">Condition (optional)</option>
+          <option value="new">New</option>
+          <option value="used">Used</option>
+        </select>
+
+        <button className="btn-primary w-full">
+          Update Details
+        </button>
+      </form>
+
+      {/* ===============================
+          IMAGE UPLOAD
       =============================== */}
       <div className="mb-6">
         <label className="block font-medium mb-2">
@@ -106,23 +207,8 @@ function AddPropertyDetails() {
             uploadImage(e.target.files[0])
           }
         />
-
-        {uploading && (
-          <p className="text-sm text-gray-500 mt-1">
-            Uploading image...
-          </p>
-        )}
-
-        {images.length >= 5 && (
-          <p className="text-sm text-red-500 mt-1">
-            Maximum of 5 images reached
-          </p>
-        )}
       </div>
 
-      {/* ===============================
-          EXISTING IMAGES
-      =============================== */}
       {images.length > 0 && (
         <div className="mb-6">
           <h2 className="font-semibold mb-2">
@@ -152,7 +238,7 @@ function AddPropertyDetails() {
       )}
 
       {/* ===============================
-          FORMS (UNCHANGED)
+          CATEGORY FORMS (UNCHANGED)
       =============================== */}
       {property.property_type === "land" && (
         <LandForm propertyId={id} onSuccess={onSuccess} />
@@ -167,10 +253,9 @@ function AddPropertyDetails() {
       )}
 
       {(property.property_type === "gadget" ||
-          property.property_type === "equipment") && (
-          <GadgetForm propertyId={id} onSuccess={onSuccess} />
+        property.property_type === "equipment") && (
+        <GadgetForm propertyId={id} onSuccess={onSuccess} />
       )}
-
 
       {property.property_type === "car" && (
         <AutomobileForm propertyId={id} onSuccess={onSuccess} />
