@@ -122,9 +122,7 @@ router.post("/:id/pay", auth, async (req, res) => {
       });
     }
 
-    const paystackAmount = Math.round(
-      Number(order.total_amount) * 100
-    );
+    const paystackAmount = Math.round(Number(order.total_amount) * 100);
 
     const payRes = await axios.post(
       "https://api.paystack.co/transaction/initialize",
@@ -146,11 +144,9 @@ router.post("/:id/pay", auth, async (req, res) => {
       }
     );
 
-    // ✅ Mark order as PAID once Paystack is initialized
-    await pool.query(
-      "UPDATE orders SET status = 'paid' WHERE id = $1",
-      [order.id]
-    );
+    // ❗ IMPORTANT:
+    // DO NOT mark order as "paid" here.
+    // That must happen in the Paystack webhook after successful payment.
 
     res.json({
       authorization_url: payRes.data.data.authorization_url,
@@ -193,9 +189,7 @@ router.patch(
         order.seller_id !== req.user.id &&
         req.user.role !== "admin"
       ) {
-        return res.status(403).json({
-          error: "Unauthorized",
-        });
+        return res.status(403).json({ error: "Unauthorized" });
       }
 
       if (order.status !== "paid") {
@@ -211,20 +205,12 @@ router.patch(
       }
 
       await pool.query(
-        `
-        UPDATE orders
-        SET delivery_confirmed = true
-        WHERE id = $1
-        `,
+        `UPDATE orders SET delivery_confirmed = true WHERE id = $1`,
         [id]
       );
 
-      res.json({
-        success: true,
-        message: "Delivery marked successfully",
-      });
+      res.json({ success: true });
     } catch (err) {
-      console.error("MARK DELIVERY ERROR:", err);
       res.status(500).json({ error: err.message });
     }
   }
@@ -243,7 +229,6 @@ router.patch("/:id/confirm-delivery", auth, async (req, res) => {
       `
       SELECT 
         o.*,
-        p.id AS property_id,
         p.title,
         s.email AS seller_email,
         s.first_name AS seller_name,
@@ -294,119 +279,31 @@ router.patch("/:id/confirm-delivery", auth, async (req, res) => {
       [sellerPayout, order.seller_id]
     );
 
-    // ✅ AUDIT LOG (ESCROW RELEASE)
     await auditLog({
       adminId: null,
       action: "escrow_released",
       entityType: "order",
-      entityId: id
+      entityId: id,
     });
 
     await sendEmail({
       to: order.seller_email,
       subject: "Escrow Released – Funds Available",
-      html: `
-        <p>Hello ${order.seller_name},</p>
-        <p>Your escrow funds for <strong>${order.title}</strong> have been released.</p>
-        <p><strong>Amount:</strong> ₦${sellerPayout.toLocaleString()}</p>
-      `,
+      html: `<p>Hello ${order.seller_name},</p>
+             <p>Your escrow funds have been released.</p>`,
     });
 
     await sendEmail({
       to: order.buyer_email,
       subject: "Delivery Confirmed",
-      html: `
-        <p>Hello ${order.buyer_name},</p>
-        <p>You have successfully confirmed delivery for <strong>${order.title}</strong>.</p>
-      `,
+      html: `<p>Hello ${order.buyer_name},</p>
+             <p>Delivery confirmed successfully.</p>`,
     });
 
-    res.json({
-      success: true,
-      message: "Escrow released successfully",
-    });
+    res.json({ success: true });
   } catch (err) {
-    console.error("CONFIRM DELIVERY ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 });
-
-/**
- * ===============================
- * ADMIN FORCE COMPLETE (DISPUTES)
- * ===============================
- */
-router.patch(
-  "/:id/complete",
-  auth,
-  roles("admin"),
-  async (req, res) => {
-    try {
-      const { id } = req.params;
-
-      const orderRes = await pool.query(
-        "SELECT * FROM orders WHERE id = $1",
-        [id]
-      );
-
-      if (!orderRes.rows.length) {
-        return res.status(404).json({ error: "Order not found" });
-      }
-
-      const order = orderRes.rows[0];
-      const sellerPayout =
-        Number(order.amount) - Number(order.platform_fee);
-
-      await pool.query(
-        `UPDATE orders
-         SET status = 'completed', released_at = NOW()
-         WHERE id = $1`,
-        [id]
-      );
-
-      await pool.query(
-        "UPDATE wallets SET balance = balance + $1 WHERE user_id = $2",
-        [sellerPayout, order.seller_id]
-      );
-
-      // ✅ AUDIT LOG (ADMIN FORCE)
-      await auditLog({
-        adminId: req.user.id,
-        action: "force_complete_escrow",
-        entityType: "order",
-        entityId: id
-      });
-
-      res.json({ success: true });
-
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  }
-);
-
-/**
- * ===============================
- * ADMIN: GET PENDING ESCROW ORDERS
- * ===============================
- */
-router.get(
-  "/admin/pending",
-  auth,
-  roles("admin"),
-  async (req, res) => {
-    const result = await pool.query(`
-      SELECT o.id, o.amount, p.title,
-             b.email AS buyer_email
-      FROM orders o
-      JOIN properties p ON p.id = o.property_id
-      JOIN users b ON b.id = o.buyer_id
-      WHERE o.status = 'paid'
-      ORDER BY o.created_at ASC
-    `);
-
-    res.json(result.rows);
-  }
-);
 
 module.exports = router;

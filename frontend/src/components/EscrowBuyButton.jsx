@@ -10,31 +10,22 @@ function EscrowBuyButton({ property }) {
       setLoading(true);
       setError("");
 
-      /**
-       * 1️⃣ Create escrow order (BACKEND ENFORCES RULES)
-       */
+      // 1️⃣ Create escrow order
       const orderRes = await api.post("/orders", {
         property_id: property.id,
       });
 
       const order = orderRes.data;
 
-      /**
-       * 2️⃣ Initialize Paystack payment
-       */
-      const payRes = await api.post("/payments/initialize", {
-        order_id: order.id,
-      });
+      // 2️⃣ Initialize Paystack via ORDER
+      const payRes = await api.post(`/orders/${order.id}/pay`);
 
-      /**
-       * 3️⃣ Redirect to Paystack
-       */
+      // 3️⃣ Redirect to Paystack
       window.location.href = payRes.data.authorization_url;
     } catch (err) {
       console.error(err);
       setError(
-        err.response?.data?.error ||
-          "Unable to start escrow payment"
+        err.response?.data?.error || "Unable to start escrow payment"
       );
     } finally {
       setLoading(false);
@@ -56,8 +47,7 @@ function EscrowBuyButton({ property }) {
       )}
 
       <p className="mt-2 text-xs text-gray-500">
-        Funds will be held securely until the transaction is
-        completed.
+        Funds will be held securely until the transaction is completed.
       </p>
     </div>
   );

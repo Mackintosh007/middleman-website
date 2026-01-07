@@ -7,25 +7,28 @@ const pool = require("../db");
  * ===============================
  * PAYSTACK WEBHOOK
  * ===============================
- * - Verifies Paystack signature
+ * - Uses RAW body (required by Paystack)
+ * - Verifies signature
  * - Confirms successful payment
  * - Marks order as PAID (escrow funded)
  * - DOES NOT release escrow
  */
 router.post(
   "/paystack",
-  express.raw({ type: "application/json" }),
+  express.raw({ type: "*/*" }),
   async (req, res) => {
     try {
       const secret = process.env.PAYSTACK_SECRET_KEY;
 
+      // 🔐 Verify Paystack signature
       const hash = crypto
         .createHmac("sha512", secret)
         .update(req.body)
         .digest("hex");
 
       if (hash !== req.headers["x-paystack-signature"]) {
-        return res.status(401).send("Invalid signature");
+        console.warn("⚠️ Invalid Paystack signature");
+        return res.sendStatus(401);
       }
 
       const event = JSON.parse(req.body.toString());
@@ -35,26 +38,29 @@ router.post(
         return res.sendStatus(200);
       }
 
-      const metadata = event.data.metadata;
+      const metadata = event.data?.metadata;
       const orderId = metadata?.order_id;
 
       if (!orderId) {
+        console.warn("⚠️ Paystack event missing order_id");
         return res.sendStatus(200);
       }
 
-      // 🔒 Update order to PAID (funds secured)
+      // 🔒 Mark order as PAID (escrow funded)
       await pool.query(
         `
         UPDATE orders
-        SET status = 'paid'
+        SET status = 'paid', paid_at = NOW()
         WHERE id = $1 AND status = 'pending'
         `,
         [orderId]
       );
 
+      console.log(`✅ Escrow funded for order ${orderId}`);
+
       return res.sendStatus(200);
     } catch (err) {
-      console.error("PAYSTACK WEBHOOK ERROR:", err);
+      console.error("❌ PAYSTACK WEBHOOK ERROR:", err);
       return res.sendStatus(500);
     }
   }
