@@ -286,9 +286,12 @@ router.patch("/:id/confirm-delivery", auth, async (req, res) => {
     const sellerPayout =
       Number(order.amount) - Number(order.platform_fee);
 
+    // ✅ ONLY ADDITION IS HERE
     await pool.query(
       `UPDATE orders
-       SET status = 'completed', released_at = NOW()
+       SET status = 'completed',
+           escrow_status = 'released',
+           released_at = NOW()
        WHERE id = $1`,
       [id]
     );

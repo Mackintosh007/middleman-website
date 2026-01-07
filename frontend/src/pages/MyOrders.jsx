@@ -162,6 +162,7 @@ function MyOrders() {
                   </button>
                 )}
 
+              {/* ✅ ADDED (AS REQUESTED, NO OTHER CHANGES) */}
               {isBuyer &&
                 order.status === "paid" &&
                 !order.delivery_confirmed && (

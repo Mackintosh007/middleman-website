@@ -51,13 +51,15 @@ router.post(
 
       // 🔒 Mark order as PAID (escrow funded)
       await pool.query(
-        `
-        UPDATE orders
-        SET status = 'paid', paid_at = NOW()
-        WHERE id = $1 AND status = 'pending'
-        `,
-        [orderId]
+          `
+          UPDATE orders
+          SET status = 'paid',
+              escrow_status = 'funded'
+          WHERE id = $1 AND status = 'pending'
+          `,
+          [orderId]
       );
+
 
       console.log(`✅ Escrow funded for order ${orderId}`);
 
