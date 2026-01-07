@@ -17,8 +17,12 @@ function PropertyDetails() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // ✅ CRITICAL GUARD: prevent /properties/undefined
-    if (!id) return;
+    // ✅ HARD GUARD: id MUST exist
+    if (!id) {
+      setLoading(false);
+      navigate("/my-properties", { replace: true });
+      return;
+    }
 
     let mounted = true;
 
@@ -29,12 +33,9 @@ function PropertyDetails() {
 
         setProperty(res.data);
 
-        // load images (safe)
         try {
           const imgRes = await api.get(`/images/${id}`);
-          if (mounted) {
-            setImages(imgRes.data || []);
-          }
+          if (mounted) setImages(imgRes.data || []);
         } catch {
           if (mounted) setImages([]);
         }
@@ -92,11 +93,10 @@ function PropertyDetails() {
     !isOwner &&
     isActive;
 
-  // main image (unchanged logic)
   const mainImage =
     images.length > 0
       ? images[0].image_url
-      : "https://via.placeholder.com/600x400?text=No+Image";
+      : "/no-image.png"; // local fallback
 
   return (
     <>
@@ -108,7 +108,6 @@ function PropertyDetails() {
 
       <PageWrapper>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-          {/* IMAGE SECTION */}
           <div>
             <img
               src={mainImage}
@@ -130,7 +129,6 @@ function PropertyDetails() {
             )}
           </div>
 
-          {/* DETAILS */}
           <div>
             <h1 className="text-3xl font-bold">
               {property.title}
