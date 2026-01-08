@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import PageWrapper from "../components/PageWrapper";
-import { LOCATIONS } from "../utils/locations"; // ✅ ADD
+import { LOCATIONS } from "../utils/locations";
 
 function CreateListing() {
   const navigate = useNavigate();
@@ -13,7 +13,7 @@ function CreateListing() {
     location: "",
     price: "",
     description: "",
-    condition: "" // ✅ already added
+    condition: ""
   });
 
   const [images, setImages] = useState([]);
@@ -32,7 +32,7 @@ function CreateListing() {
   };
 
   /* ===============================
-     CREATE LISTING + UPLOAD IMAGES
+     CREATE LISTING (ATOMIC)
   =============================== */
   const submit = async (e) => {
     e.preventDefault();
@@ -53,35 +53,29 @@ function CreateListing() {
     setLoading(true);
 
     try {
-      /* ===============================
-         1️⃣ CREATE PROPERTY
-      =============================== */
-      const propertyRes = await api.post("/properties", {
-        property_type: form.category,
-        title: form.title,
-        location: form.location,
-        price: form.price,
-        description: form.description,
-        condition: form.condition || null
-      });
-
-      const propertyId = propertyRes.data.id;
-
-      /* ===============================
-         2️⃣ UPLOAD IMAGES
-      =============================== */
       const formData = new FormData();
 
+      // 🔒 PROPERTY DATA
+      formData.append("property_type", form.category);
+      formData.append("title", form.title);
+      formData.append("location", form.location);
+      formData.append("price", form.price);
+      formData.append("description", form.description);
+      formData.append("condition", form.condition || "");
+
+      // 🔒 IMAGES (REQUIRED)
       images.forEach((file) => {
         formData.append("images", file);
       });
 
-      await api.post(`/images/upload/${propertyId}`, formData, {
+      // ✅ SINGLE ATOMIC REQUEST
+      await api.post("/properties", formData, {
         headers: { "Content-Type": "multipart/form-data" }
       });
 
       alert("Listing created successfully");
       navigate("/dashboard");
+
     } catch (err) {
       console.error("CREATE LISTING ERROR:", err);
       setError(
@@ -115,14 +109,10 @@ function CreateListing() {
           required
         >
           <option value="">Listing Type</option>
-
           <option value="land">Land</option>
           <option value="house">House</option>
           <option value="apartment">Apartment</option>
-
-          {/* DB uses `car`, NOT `automobile` */}
           <option value="car">Automobile</option>
-
           <option value="gadget">Gadgets</option>
           <option value="equipment">Equipment</option>
           <option value="fashion">Fashion</option>
@@ -131,7 +121,6 @@ function CreateListing() {
             Building Materials
           </option>
         </select>
-
 
         {/* CONDITION */}
         <select
@@ -153,7 +142,7 @@ function CreateListing() {
           required
         />
 
-        {/* LOCATION (✅ DROPDOWN) */}
+        {/* LOCATION */}
         <select
           name="location"
           className="input"

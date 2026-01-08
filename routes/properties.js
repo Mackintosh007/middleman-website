@@ -3,15 +3,21 @@ const router = express.Router();
 const pool = require("../db");
 const auth = require("../middleware/auth");
 const roles = require("../middleware/roles");
+const upload = require("../middleware/upload"); // ✅ ADD
+const cloudinary = require("../utils/cloudinary"); // ✅ ADD
 
 /**
- * CREATE PROPERTY
+ * CREATE PROPERTY (ATOMIC WITH IMAGES)
  */
 router.post(
   "/",
   auth,
   roles("admin", "agent", "individual_seller"),
+  upload.array("images", 5), // ✅ ADD
   async (req, res) => {
+    const client = await pool.connect();
+    const uploadedImages = [];
+
     try {
       const {
         property_type,
@@ -21,6 +27,13 @@ router.post(
         price,
         condition
       } = req.body;
+
+      // 🔒 HARD BACKEND RULE
+      if (!req.files || req.files.length === 0) {
+        return res
+          .status(400)
+          .json({ error: "At least one image is required" });
+      }
 
       let revenue_type = "commission";
 
@@ -40,7 +53,17 @@ router.post(
         return res.status(400).json({ error: "Invalid condition" });
       }
 
-      const result = await pool.query(
+      // Track uploaded images for cleanup if DB fails
+      req.files.forEach((file) => {
+        uploadedImages.push({
+          url: file.path,
+          public_id: file.filename
+        });
+      });
+
+      await client.query("BEGIN");
+
+      const result = await client.query(
         `INSERT INTO properties
          (owner_id, property_type, title, description, location, price, revenue_type, condition)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
@@ -57,9 +80,40 @@ router.post(
         ]
       );
 
-      res.status(201).json(result.rows[0]);
+      const property = result.rows[0];
+
+      // ✅ Save images (assumes images table already exists & is used)
+      for (const img of uploadedImages) {
+        await client.query(
+          `
+          INSERT INTO images (property_id, image_url)
+          VALUES ($1, $2)
+          `,
+          [property.id, img.url]
+        );
+      }
+
+      await client.query("COMMIT");
+
+      res.status(201).json(property);
+
     } catch (err) {
+      await client.query("ROLLBACK");
+
+      // 🧹 CLEAN UP CLOUDINARY ON FAILURE
+      for (const img of uploadedImages) {
+        try {
+          await cloudinary.uploader.destroy(img.public_id);
+        } catch (cleanupErr) {
+          console.error("Cloudinary cleanup failed:", cleanupErr);
+        }
+      }
+
+      console.error("CREATE PROPERTY ERROR:", err);
       res.status(500).json({ error: err.message });
+
+    } finally {
+      client.release();
     }
   }
 );
@@ -171,7 +225,6 @@ router.patch(
 
       const property = propRes.rows[0];
 
-      // 🔐 OWNER / ADMIN CHECK
       if (
         req.user.role !== "admin" &&
         Number(property.owner_id) !== Number(req.user.id)
@@ -179,18 +232,12 @@ router.patch(
         return res.status(403).json({ error: "Unauthorized" });
       }
 
-      // 🔒 LOCK 1: PROPERTY STATUS LOCK
-      if (
-        property.status === "pending" ||
-        property.status === "sold"
-      ) {
+      if (property.status === "pending" || property.status === "sold") {
         return res.status(403).json({
-          error:
-            "This listing is locked due to an escrow transaction"
+          error: "This listing is locked due to an escrow transaction"
         });
       }
 
-      // 🔒 LOCK 2: ORDER-BASED ESCROW LOCK
       const orderLock = await pool.query(
         `
         SELECT 1

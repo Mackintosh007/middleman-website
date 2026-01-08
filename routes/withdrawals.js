@@ -33,24 +33,61 @@ router.post("/request", auth, async (req, res) => {
       return res.status(400).json({ error: "Insufficient balance" });
     }
 
-    // 2️⃣ Create withdrawal request
-    await pool.query(
-      `INSERT INTO withdrawals (user_id, amount)
-       VALUES ($1, $2)`,
-      [userId, amount]
+    // 2️⃣ Load user's bank details (SNAPSHOT SOURCE)
+    const bankRes = await pool.query(
+      `
+      SELECT bank_name, account_number, account_name
+      FROM bank_accounts
+      WHERE user_id = $1
+      `,
+      [userId]
     );
 
-    // 3️⃣ Deduct from wallet balance
+    if (bankRes.rows.length === 0) {
+      return res.status(400).json({
+        error: "No bank details found. Please add bank details first."
+      });
+    }
+
+    const bank = bankRes.rows[0];
+
+    // 3️⃣ Create withdrawal request WITH BANK SNAPSHOT
     await pool.query(
-      `UPDATE wallets
-       SET balance = balance - $1
-       WHERE user_id = $2`,
+      `
+      INSERT INTO withdrawals (
+        user_id,
+        amount,
+        bank_name,
+        account_number,
+        account_name
+      )
+      VALUES ($1, $2, $3, $4, $5)
+      `,
+      [
+        userId,
+        amount,
+        bank.bank_name,
+        bank.account_number,
+        bank.account_name
+      ]
+    );
+
+    // 4️⃣ Deduct from wallet balance
+    await pool.query(
+      `
+      UPDATE wallets
+      SET balance = balance - $1
+      WHERE user_id = $2
+      `,
       [amount, userId]
     );
 
     // ❌ NO AUDIT LOG HERE (seller action)
 
-    res.json({ success: true, message: "Withdrawal requested" });
+    res.json({
+      success: true,
+      message: "Withdrawal requested successfully"
+    });
 
   } catch (err) {
     console.error("Withdrawal request error:", err);
@@ -65,9 +102,12 @@ router.post("/request", auth, async (req, res) => {
 router.get("/mine", auth, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT * FROM withdrawals
-       WHERE user_id = $1
-       ORDER BY created_at DESC`,
+      `
+      SELECT *
+      FROM withdrawals
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+      `,
       [req.user.id]
     );
 
@@ -88,11 +128,13 @@ router.get("/admin/pending", auth, async (req, res) => {
     }
 
     const result = await pool.query(
-      `SELECT w.*, u.email
-       FROM withdrawals w
-       JOIN users u ON u.id = w.user_id
-       WHERE w.status = 'pending'
-       ORDER BY w.created_at ASC`
+      `
+      SELECT w.*, u.email
+      FROM withdrawals w
+      JOIN users u ON u.id = w.user_id
+      WHERE w.status = 'pending'
+      ORDER BY w.created_at ASC
+      `
     );
 
     res.json(result.rows);
@@ -114,10 +156,12 @@ router.patch("/:id/approve", auth, async (req, res) => {
     const { id } = req.params;
 
     const result = await pool.query(
-      `UPDATE withdrawals
-       SET status = 'approved'
-       WHERE id = $1 AND status = 'pending'
-       RETURNING *`,
+      `
+      UPDATE withdrawals
+      SET status = 'approved'
+      WHERE id = $1 AND status = 'pending'
+      RETURNING *
+      `,
       [id]
     );
 
@@ -154,8 +198,11 @@ router.patch("/:id/reject", auth, async (req, res) => {
 
     // 1️⃣ Load withdrawal
     const withdrawalRes = await pool.query(
-      `SELECT * FROM withdrawals
-       WHERE id = $1 AND status = 'pending'`,
+      `
+      SELECT *
+      FROM withdrawals
+      WHERE id = $1 AND status = 'pending'
+      `,
       [id]
     );
 
@@ -167,17 +214,21 @@ router.patch("/:id/reject", auth, async (req, res) => {
 
     // 2️⃣ Mark rejected
     await pool.query(
-      `UPDATE withdrawals
-       SET status = 'rejected'
-       WHERE id = $1`,
+      `
+      UPDATE withdrawals
+      SET status = 'rejected'
+      WHERE id = $1
+      `,
       [id]
     );
 
     // 3️⃣ Refund wallet
     await pool.query(
-      `UPDATE wallets
-       SET balance = balance + $1
-       WHERE user_id = $2`,
+      `
+      UPDATE wallets
+      SET balance = balance + $1
+      WHERE user_id = $2
+      `,
       [withdrawal.amount, withdrawal.user_id]
     );
 
