@@ -3,7 +3,6 @@ import { useAuth } from "../context/AuthContext";
 import PageWrapper from "../components/PageWrapper";
 import SellerRequestCard from "../components/SellerRequestCard";
 
-
 function Dashboard() {
   const { user, loading } = useAuth();
 
@@ -52,6 +51,14 @@ function Dashboard() {
           className="block text-blue-600 underline"
         >
           Verify Phone Number
+        </Link>
+
+        {/* ✅ NEW: SERVICES DASHBOARD LINK */}
+        <Link
+          to="/my-services"
+          className="block text-blue-600 underline"
+        >
+          My Services
         </Link>
       </div>
 

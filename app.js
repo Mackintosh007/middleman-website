@@ -85,6 +85,17 @@ app.use("/api/admin/kyc", require("./routes/adminKyc"));
 app.use("/api/admin/audit-logs", auditLogsRouter);
 
 /* ===============================
+   SERVICES & SERVICE PROVIDERS
+=============================== */
+app.use("/api/admin/services", require("./routes/adminServices"));
+app.use("/api/services", require("./routes/services"));
+app.use("/api/service-requests", require("./routes/serviceRequests"));
+app.use("/api/service-images", require("./routes/serviceImages"));
+app.use("/api/service-reviews", require("./routes/serviceReviews"));
+
+
+
+/* ===============================
    SERVER
 =============================== */
 const PORT = process.env.PORT || 8080;

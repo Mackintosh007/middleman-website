@@ -80,6 +80,9 @@ function App() {
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/resend-verification" element={<ResendVerification />} />
         <Route path="/payment-success" element={<PaymentSuccess />} />
+        <Route path="/services" element={<Services />} />
+        <Route path="/services/:id" element={<ServiceDetails />} />
+        <Route path="/services" element={<FindServices />} />
 
 
 
@@ -245,7 +248,18 @@ function App() {
           }
         />
 
-        {/* ================= FALLBACK ================= */}
+        <Route
+          path="/admin/services"
+          element={<AdminServices />}
+        />
+
+        <Route
+          path="/my-services"
+          element={<ServiceDashboard />}
+        />
+
+
+      {/* ================= FALLBACK ================= */}
         <Route
           path="*"
           element={
