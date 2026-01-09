@@ -19,9 +19,37 @@ function Contact() {
       </p>
 
       <ul className="space-y-3 text-gray-700">
-        <li>📧 Email: support@middleman.com</li>
-        <li>📞 Phone: +234 903 699 7745</li>
-        <li>💬 WhatsApp Support available during business hours</li>
+        <li>
+          📧 Email:{" "}
+          <a
+            href="mailto:support@middleman.com"
+            className="text-blue-600 underline"
+          >
+            support@middleman.com
+          </a>
+        </li>
+
+        <li>
+          📞 Phone:{" "}
+          <a
+            href="tel:+2349036997745"
+            className="text-blue-600 underline"
+          >
+            +234 903 699 7745
+          </a>
+        </li>
+
+        <li>
+          💬 WhatsApp:{" "}
+          <a
+            href="https://wa.me/2349036997745?text=Hello%20Middleman%20Support,%20I%20need%20help"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-green-600 underline font-semibold"
+          >
+            Chat with us on WhatsApp
+          </a>
+        </li>
       </ul>
     </PageWrapper>
   );

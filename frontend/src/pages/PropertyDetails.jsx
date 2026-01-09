@@ -14,6 +14,7 @@ function PropertyDetails() {
 
   const [property, setProperty] = useState(null);
   const [images, setImages] = useState([]);
+  const [ratingStats, setRatingStats] = useState(null); // ⭐ NEW
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,6 +32,18 @@ function PropertyDetails() {
         if (!mounted) return;
 
         setProperty(res.data);
+
+        // ⭐ LOAD SELLER RATING (NEW)
+        try {
+          const ratingRes = await api.get(
+            `/reviews/${res.data.owner_id}`
+          );
+          if (mounted) {
+            setRatingStats(ratingRes.data.stats);
+          }
+        } catch {
+          if (mounted) setRatingStats(null);
+        }
 
         try {
           const imgRes = await api.get(`/images/${id}`);
@@ -109,7 +122,6 @@ function PropertyDetails() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
           {/* ================= IMAGE SECTION ================= */}
           <div>
-            {/* ✅ MAIN IMAGE (NO ZOOM, NO CROP) */}
             <div className="w-full h-96 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
               <img
                 src={mainImage}
@@ -118,7 +130,6 @@ function PropertyDetails() {
               />
             </div>
 
-            {/* ✅ IMAGE GALLERY */}
             {images.length > 1 && (
               <div className="grid grid-cols-3 gap-3 mt-4">
                 {images.slice(1).map((img) => (
@@ -142,6 +153,23 @@ function PropertyDetails() {
             <h1 className="text-3xl font-bold">
               {property.title}
             </h1>
+
+            {/* ⭐ SELLER RATING (NEW) */}
+            <div className="mt-1 text-sm text-yellow-600">
+              {ratingStats &&
+              Number(ratingStats.total_reviews) > 0 ? (
+                <>
+                  ⭐ {ratingStats.average_rating}{" "}
+                  <span className="text-gray-500">
+                    ({ratingStats.total_reviews} reviews)
+                  </span>
+                </>
+              ) : (
+                <span className="text-gray-400">
+                  No reviews yet
+                </span>
+              )}
+            </div>
 
             <p className="mt-2 text-gray-600">
               {property.location}

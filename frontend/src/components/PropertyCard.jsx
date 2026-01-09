@@ -3,7 +3,9 @@ import { useEffect, useState } from "react";
 import api from "../api/axios";
 
 function PropertyCard({ property }) {
-  // 🔒 SAFETY NORMALIZATION (UNCHANGED)
+  /* ===============================
+     SAFETY NORMALIZATION (UNCHANGED)
+  =============================== */
   const title =
     property.title ||
     property.name ||
@@ -26,13 +28,20 @@ function PropertyCard({ property }) {
     property.type ||
     "listing";
 
-  // IMAGE STATE (UNCHANGED)
+  /* ===============================
+     IMAGE STATE (UNCHANGED)
+  =============================== */
   const [image, setImage] = useState(
     property.image ||
       property.thumbnail ||
       property.images?.[0] ||
       null
   );
+
+  /* ===============================
+     ⭐ RATING STATE (NEW)
+  =============================== */
+  const [ratingStats, setRatingStats] = useState(null);
 
   useEffect(() => {
     if (image || !property?.id) return;
@@ -57,6 +66,34 @@ function PropertyCard({ property }) {
     return () => (isMounted = false);
   }, [property.id, image]);
 
+  /* ===============================
+     ⭐ LOAD SELLER RATING (NEW)
+  =============================== */
+  useEffect(() => {
+    if (!property?.owner_id) return;
+
+    let mounted = true;
+
+    const loadRating = async () => {
+      try {
+        const res = await api.get(
+          `/reviews/${property.owner_id}`
+        );
+
+        if (mounted) {
+          setRatingStats(res.data.stats);
+        }
+      } catch {
+        if (mounted) setRatingStats(null);
+      }
+    };
+
+    loadRating();
+    return () => {
+      mounted = false;
+    };
+  }, [property.owner_id]);
+
   const finalImage =
     image ||
     "https://via.placeholder.com/400x250?text=No+Image";
@@ -66,7 +103,7 @@ function PropertyCard({ property }) {
       to={`/properties/${property.id}`}
       className="card overflow-hidden hover:shadow-lg transition block bg-white rounded-lg border"
     >
-      {/* IMAGE — FORCE OVERRIDE */}
+      {/* IMAGE */}
       <div className="w-full h-48 bg-gray-100 flex items-center justify-center">
         <img
           src={finalImage}
@@ -84,6 +121,23 @@ function PropertyCard({ property }) {
         <p className="text-sm text-gray-500">
           {location}
         </p>
+
+        {/* ⭐ RATING DISPLAY */}
+        <div className="mt-1 text-sm text-yellow-600">
+          {ratingStats &&
+          Number(ratingStats.total_reviews) > 0 ? (
+            <>
+              ⭐ {ratingStats.average_rating}{" "}
+              <span className="text-gray-500">
+                ({ratingStats.total_reviews})
+              </span>
+            </>
+          ) : (
+            <span className="text-gray-400">
+              No reviews yet
+            </span>
+          )}
+        </div>
 
         <p className="mt-3 text-blue-600 font-bold">
           ₦{price.toLocaleString()}
