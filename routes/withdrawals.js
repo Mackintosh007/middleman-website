@@ -160,9 +160,12 @@ router.get("/admin/pending", auth, async (req, res) => {
 });
 
 /**
- * ADMIN APPROVE WITHDRAWAL
+ * PATCH /withdrawals/:id/approve
+ * Admin approves withdrawal
  */
 router.patch("/:id/approve", auth, async (req, res) => {
+  const client = await pool.connect();
+
   try {
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Access denied" });
@@ -170,21 +173,49 @@ router.patch("/:id/approve", auth, async (req, res) => {
 
     const { id } = req.params;
 
-    const result = await pool.query(
+    await client.query("BEGIN");
+
+    // 1️⃣ Load withdrawal WITH LOCK
+    const withdrawalRes = await client.query(
       `
-      UPDATE withdrawals
-      SET status = 'approved',
-          processed_at = NOW()
+      SELECT *
+      FROM withdrawals
       WHERE id = $1 AND status = 'pending'
-      RETURNING *
+      FOR UPDATE
       `,
       [id]
     );
 
-    if (!result.rows.length) {
+    if (withdrawalRes.rows.length === 0) {
+      await client.query("ROLLBACK");
       return res.status(400).json({ error: "Invalid withdrawal" });
     }
 
+    const withdrawal = withdrawalRes.rows[0];
+
+    // 2️⃣ Mark withdrawal approved
+    await client.query(
+      `
+      UPDATE withdrawals
+      SET status = 'approved',
+          processed_at = NOW()
+      WHERE id = $1
+      `,
+      [id]
+    );
+
+    // 3️⃣ REMOVE funds from pending balance
+    await client.query(
+      `
+      UPDATE wallets
+      SET pending = pending - $1,
+          updated_at = NOW()
+      WHERE user_id = $2
+      `,
+      [withdrawal.amount, withdrawal.user_id]
+    );
+
+    // 4️⃣ Audit log
     await auditLog({
       adminId: req.user.id,
       action: "approve_withdrawal",
@@ -192,11 +223,22 @@ router.patch("/:id/approve", auth, async (req, res) => {
       entityId: id
     });
 
-    res.json({ success: true });
+    await client.query("COMMIT");
+
+    res.json({
+      success: true,
+      message: "Withdrawal approved and funds released"
+    });
+
   } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("APPROVE WITHDRAWAL ERROR:", err);
     res.status(500).json({ error: "Approval failed" });
+  } finally {
+    client.release();
   }
 });
+
 
 /**
  * ADMIN REJECT WITHDRAWAL
