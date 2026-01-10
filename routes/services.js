@@ -355,4 +355,87 @@ router.patch("/:id/status", auth, async (req, res) => {
   }
 });
 
+/* ======================================================
+   🔐 ADMIN: APPROVE SERVICE
+   PATCH /api/services/:id/approve
+====================================================== */
+router.patch(
+  "/:id/approve",
+  auth,
+  async (req, res) => {
+    try {
+      if (req.user.role !== "admin") {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const { id } = req.params;
+
+      const result = await pool.query(
+        `
+        UPDATE services
+        SET status = 'active'
+        WHERE id = $1 AND status = 'pending'
+        RETURNING *
+        `,
+        [id]
+      );
+
+      if (!result.rows.length) {
+        return res.status(400).json({
+          error: "Service not found or already processed"
+        });
+      }
+
+      res.json({
+        success: true,
+        service: result.rows[0]
+      });
+
+    } catch (err) {
+      console.error("APPROVE SERVICE ERROR:", err);
+      res.status(500).json({ error: "Failed to approve service" });
+    }
+  }
+);
+
+/* ======================================================
+   🔐 ADMIN: REJECT SERVICE
+   PATCH /api/services/:id/reject
+====================================================== */
+router.patch(
+  "/:id/reject",
+  auth,
+  async (req, res) => {
+    try {
+      if (req.user.role !== "admin") {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const { id } = req.params;
+
+      const result = await pool.query(
+        `
+        UPDATE services
+        SET status = 'inactive'
+        WHERE id = $1 AND status = 'pending'
+        RETURNING *
+        `,
+        [id]
+      );
+
+      if (!result.rows.length) {
+        return res.status(400).json({
+          error: "Service not found or already processed"
+        });
+      }
+
+      res.json({ success: true });
+
+    } catch (err) {
+      console.error("REJECT SERVICE ERROR:", err);
+      res.status(500).json({ error: "Failed to reject service" });
+    }
+  }
+);
+
 module.exports = router;
