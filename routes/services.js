@@ -158,6 +158,27 @@ router.get("/mine", auth, async (req, res) => {
 });
 
 /* ======================================================
+   🔐 ADMIN: PENDING SERVICES
+====================================================== */
+router.get("/admin/pending", auth, async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ error: "Access denied" });
+  }
+
+  const result = await pool.query(
+    `
+    SELECT s.*, u.email AS user_email
+    FROM services s
+    JOIN users u ON u.id = s.user_id
+    WHERE s.status = 'pending'
+    ORDER BY s.created_at ASC
+    `
+  );
+
+  res.json(result.rows);
+});
+
+/* ======================================================
    PUBLIC: BROWSE ACTIVE SERVICES
    GET /api/services
 ====================================================== */
@@ -332,27 +353,6 @@ router.patch("/:id/status", auth, async (req, res) => {
     console.error("SERVICE STATUS ERROR:", err);
     res.status(500).json({ error: "Failed to update service" });
   }
-});
-
-/* ======================================================
-   🔐 ADMIN: PENDING SERVICES
-====================================================== */
-router.get("/admin/pending", auth, async (req, res) => {
-  if (req.user.role !== "admin") {
-    return res.status(403).json({ error: "Access denied" });
-  }
-
-  const result = await pool.query(
-    `
-    SELECT s.*, u.email AS user_email
-    FROM services s
-    JOIN users u ON u.id = s.user_id
-    WHERE s.status = 'pending'
-    ORDER BY s.created_at ASC
-    `
-  );
-
-  res.json(result.rows);
 });
 
 module.exports = router;
