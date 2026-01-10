@@ -45,11 +45,11 @@ router.post("/request", auth, async (req, res) => {
     }
 
     // 2️⃣ Load user's bank details (snapshot)
-    const bankRes = await client.query(
+    const bankRes = await pool.query(
       `
       SELECT bank_name, account_number, account_name
-      FROM bank_accounts
-      WHERE user_id = $1
+      FROM users
+      WHERE id = $1 AND bank_verified = true
       `,
       [userId]
     );
