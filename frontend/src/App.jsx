@@ -48,6 +48,12 @@ import AdminUsers from "./pages/AdminUsers";
 import AdminSellerRequests from "./pages/AdminSellerRequests";
 import AdminListings from "./pages/AdminListings";
 import AdminAuditLogs from "./pages/AdminAuditLogs";
+/* SERVICES */
+import Services from "./pages/Services";
+import ServiceDetails from "./pages/ServiceDetails";
+import AdminServices from "./pages/AdminServices";
+import ServiceDashboard from "./pages/ServiceDashboard";
+
 
 
 
@@ -82,8 +88,6 @@ function App() {
         <Route path="/payment-success" element={<PaymentSuccess />} />
         <Route path="/services" element={<Services />} />
         <Route path="/services/:id" element={<ServiceDetails />} />
-        <Route path="/services" element={<FindServices />} />
-
 
 
 
