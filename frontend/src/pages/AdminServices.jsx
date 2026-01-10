@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "../api/axios";
-import PageWrapper from "../../components/PageWrapper";
+import PageWrapper from "../components/PageWrapper";
 
 function AdminServices() {
   const [services, setServices] = useState([]);
