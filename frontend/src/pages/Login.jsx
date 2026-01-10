@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import api from "../api/axios";
 import PageWrapper from "../components/PageWrapper";
 import SEO from "../components/SEO";
 
@@ -10,33 +11,71 @@ function Login() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const [showResend, setShowResend] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMsg, setResendMsg] = useState("");
+
+  /* ===============================
+     LOGIN
+  =============================== */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setShowResend(false);
+    setResendMsg("");
     setLoading(true);
 
     try {
       await login(email, password);
       navigate("/dashboard");
     } catch (err) {
-      setError(
+      const msg =
         err.response?.data?.error ||
-          "Invalid email or password"
-      );
+        "Invalid email or password";
+
+      setError(msg);
+
+      if (msg.toLowerCase().includes("verify")) {
+        setShowResend(true);
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  /* ===============================
+     RESEND VERIFICATION
+  =============================== */
+  const resendVerification = async () => {
+    try {
+      setResendLoading(true);
+      setResendMsg("");
+
+      const res = await api.post(
+        "/auth/resend-verification",
+        { email }
+      );
+
+      setResendMsg(res.data.message);
+    } catch (err) {
+      setResendMsg(
+        err.response?.data?.error ||
+          "Failed to resend verification email"
+      );
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   return (
     <>
-      {/* ✅ SEO (SAFE, NON-BREAKING) */}
       <SEO
         title="Login | Middleman"
-        description="Login to your Middleman account to buy and sell securely with escrow protection."
+        description="Login to your Middleman account"
         url="https://middlemanng.com/login"
       />
 
@@ -48,6 +87,27 @@ function Login() {
             <p className="mb-3 text-red-600 text-sm">
               {error}
             </p>
+          )}
+
+          {showResend && (
+            <div className="mb-4">
+              <button
+                type="button"
+                onClick={resendVerification}
+                disabled={resendLoading}
+                className="text-sm text-blue-600 hover:underline"
+              >
+                {resendLoading
+                  ? "Resending verification email..."
+                  : "Resend verification email"}
+              </button>
+
+              {resendMsg && (
+                <p className="text-sm mt-2 text-green-600">
+                  {resendMsg}
+                </p>
+              )}
+            </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -78,7 +138,6 @@ function Login() {
             </button>
           </form>
 
-          {/* ✅ FORGOT PASSWORD (UI ONLY) */}
           <div className="mt-4 text-right">
             <Link
               to="/forgot-password"

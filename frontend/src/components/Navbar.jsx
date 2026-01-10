@@ -11,7 +11,8 @@ import {
   Shirt,
   Sofa,
   Hammer,
-  Briefcase   // ✅ ADDED ICON FOR SERVICES
+  MoreHorizontal,
+  X
 } from "lucide-react";
 
 const CATEGORIES = [
@@ -24,9 +25,6 @@ const CATEGORIES = [
   { label: "Fashion", value: "fashion", icon: Shirt },
   { label: "Furniture", value: "furniture", icon: Sofa },
   { label: "Building Materials", value: "building_materials", icon: Hammer },
-
-  // ✅ ADDED — SERVICES CATEGORY
-  { label: "Services", value: "services", icon: Briefcase }
 ];
 
 function Navbar() {
@@ -35,6 +33,7 @@ function Navbar() {
   const location = useLocation();
 
   const [search, setSearch] = useState("");
+  const [showAll, setShowAll] = useState(false);
 
   const query = new URLSearchParams(location.search);
   const activeCategory = query.get("category");
@@ -45,13 +44,8 @@ function Navbar() {
   };
 
   const handleCategoryClick = (category) => {
-    // ✅ IF SERVICES → ROUTE TO SERVICES PAGE
-    if (category === "services") {
-      navigate("/services");
-      return;
-    }
-
     navigate(`/?category=${category}`);
+    setShowAll(false);
   };
 
   const handleSearchSubmit = (e) => {
@@ -61,11 +55,13 @@ function Navbar() {
     setSearch("");
   };
 
+  // ✅ Mobile: show only first 5 categories
+  const mobileCategories = CATEGORIES.slice(0, 5);
+
   return (
     <header className="bg-white border-b sticky top-0 z-50">
       {/* ===== TOP NAV ===== */}
       <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-        {/* LOGO */}
         <button
           onClick={() => navigate("/", { replace: true })}
           className="text-xl font-bold text-blue-600"
@@ -73,7 +69,7 @@ function Navbar() {
           Middleman
         </button>
 
-        {/* SEARCH */}
+        {/* SEARCH (DESKTOP) */}
         <form
           onSubmit={handleSearchSubmit}
           className="hidden md:flex items-center gap-2 border rounded-lg px-3 py-1"
@@ -89,27 +85,13 @@ function Navbar() {
 
         {/* NAV LINKS */}
         <nav className="flex items-center gap-6 text-sm font-medium">
-          <Link
-            to="/properties"
-            className="hover:text-blue-600"
-          >
+          <Link to="/properties" className="hover:text-blue-600">
             Listings
-          </Link>
-
-          {/* ✅ ADDED SERVICES LINK */}
-          <Link
-            to="/services"
-            className="hover:text-blue-600"
-          >
-            Services
           </Link>
 
           {user ? (
             <>
-              <Link
-                to="/dashboard"
-                className="hover:text-blue-600"
-              >
+              <Link to="/dashboard" className="hover:text-blue-600">
                 Dashboard
               </Link>
 
@@ -122,10 +104,7 @@ function Navbar() {
             </>
           ) : (
             <>
-              <Link
-                to="/login"
-                className="hover:text-blue-600"
-              >
+              <Link to="/login" className="hover:text-blue-600">
                 Login
               </Link>
 
@@ -142,31 +121,100 @@ function Navbar() {
 
       {/* ===== CATEGORY BAR ===== */}
       <div className="bg-white border-t sticky top-[72px] z-40">
-        <div className="max-w-7xl mx-auto px-6 py-3 flex gap-6 overflow-x-auto text-sm font-medium">
-          {CATEGORIES.map((cat) => {
-            const Icon = cat.icon;
-            const isActive =
-              cat.value === "services"
-                ? location.pathname.startsWith("/services")
-                : activeCategory === cat.value;
+        <div className="max-w-7xl mx-auto px-4 py-3 text-sm font-medium">
 
-            return (
-              <button
-                key={cat.value}
-                onClick={() => handleCategoryClick(cat.value)}
-                className={`flex items-center gap-2 whitespace-nowrap pb-1 transition ${
-                  isActive
-                    ? "text-blue-600 border-b-2 border-blue-600"
-                    : "text-gray-600 hover:text-blue-600"
-                }`}
-              >
-                <Icon size={16} />
-                {cat.label}
-              </button>
-            );
-          })}
+          {/* ===============================
+              🔽 MOBILE CATEGORY WRAP FIX
+          =============================== */}
+          <div className="grid grid-cols-3 gap-3 md:hidden">
+            {mobileCategories.map((cat) => {
+              const Icon = cat.icon;
+              const isActive = activeCategory === cat.value;
+
+              return (
+                <button
+                  key={cat.value}
+                  onClick={() => handleCategoryClick(cat.value)}
+                  className={`flex items-center gap-2 justify-center py-2 rounded-lg ${
+                    isActive
+                      ? "text-blue-600 border border-blue-600"
+                      : "text-gray-600 border"
+                  }`}
+                >
+                  <Icon size={16} />
+                  <span className="text-xs">{cat.label}</span>
+                </button>
+              );
+            })}
+
+            {/* MORE BUTTON */}
+            <button
+              onClick={() => setShowAll(true)}
+              className="flex items-center gap-2 justify-center py-2 rounded-lg border text-gray-600"
+            >
+              <MoreHorizontal size={16} />
+              <span className="text-xs">More</span>
+            </button>
+          </div>
+
+          {/* ===============================
+              DESKTOP (UNCHANGED)
+          =============================== */}
+          <div className="hidden md:flex gap-6">
+            {CATEGORIES.map((cat) => {
+              const Icon = cat.icon;
+              const isActive = activeCategory === cat.value;
+
+              return (
+                <button
+                  key={cat.value}
+                  onClick={() => handleCategoryClick(cat.value)}
+                  className={`flex items-center gap-2 whitespace-nowrap pb-1 ${
+                    isActive
+                      ? "text-blue-600 border-b-2 border-blue-600"
+                      : "text-gray-600 hover:text-blue-600"
+                  }`}
+                >
+                  <Icon size={16} />
+                  {cat.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
+
+      {/* ===== MOBILE MODAL ===== */}
+      {showAll && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex justify-center items-end md:hidden">
+          <div className="bg-white w-full rounded-t-2xl p-4 max-h-[70vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-semibold text-lg">
+                All Categories
+              </h3>
+              <button onClick={() => setShowAll(false)}>
+                <X />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {CATEGORIES.map((cat) => {
+                const Icon = cat.icon;
+                return (
+                  <button
+                    key={cat.value}
+                    onClick={() => handleCategoryClick(cat.value)}
+                    className="flex items-center gap-3 border rounded-lg p-3"
+                  >
+                    <Icon size={18} />
+                    {cat.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

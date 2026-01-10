@@ -126,6 +126,72 @@ router.post("/login", async (req, res) => {
 });
 
 /**
+ * ======================================================
+ * RESEND EMAIL VERIFICATION
+ * POST /api/auth/resend-verification
+ * ======================================================
+ */
+router.post("/resend-verification", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    const userRes = await pool.query(
+      `
+      SELECT id, email, verified, verification_token
+      FROM users
+      WHERE email = $1
+      `,
+      [email]
+    );
+
+    if (!userRes.rows.length) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const user = userRes.rows[0];
+
+    if (user.verified) {
+      return res.status(400).json({
+        error: "Account is already verified"
+      });
+    }
+
+    // 🔁 Reuse existing token or generate new one
+    const token =
+      user.verification_token ||
+      require("crypto").randomBytes(32).toString("hex");
+
+    await pool.query(
+      `
+      UPDATE users
+      SET verification_token = $1
+      WHERE id = $2
+      `,
+      [token, user.id]
+    );
+
+    // 📧 SEND EMAIL (reuse your existing mailer)
+    await sendVerificationEmail(user.email, token);
+
+    res.json({
+      success: true,
+      message: "Verification email resent"
+    });
+
+  } catch (err) {
+    console.error("RESEND VERIFICATION ERROR:", err);
+    res.status(500).json({
+      error: "Failed to resend verification email"
+    });
+  }
+});
+
+
+/**
  * FORGOT PASSWORD
  */
 router.post("/forgot-password", async (req, res) => {

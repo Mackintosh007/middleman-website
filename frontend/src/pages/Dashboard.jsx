@@ -2,15 +2,11 @@ import { Navigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import PageWrapper from "../components/PageWrapper";
 import SellerRequestCard from "../components/SellerRequestCard";
-
-/* ✅ SAFE ADDITIONS */
 import { useEffect, useState } from "react";
 import api from "../api/axios";
 
 function Dashboard() {
   const { user, loading } = useAuth();
-
-  /* ✅ SAFE ADDITION */
   const [hasServices, setHasServices] = useState(false);
 
   // 🔐 Still loading auth state
@@ -32,8 +28,6 @@ function Dashboard() {
      (SAFE, NON-BLOCKING)
   =============================== */
   useEffect(() => {
-    if (!user) return;
-
     api
       .get("/services/mine")
       .then((res) => {
@@ -42,9 +36,8 @@ function Dashboard() {
         }
       })
       .catch(() => {});
-  }, [user]);
+  }, []);
 
-  // ✅ SAFE ROLE DISPLAY
   const roleLabel = user.role
     ? user.role.replace("_", " ")
     : "user";
@@ -63,34 +56,24 @@ function Dashboard() {
           ACCOUNT ACTIONS
       =============================== */}
       <div className="mt-4 space-y-2">
-        <Link
-          to="/profile/edit"
-          className="block text-blue-600 underline"
-        >
+        <Link to="/profile/edit" className="block text-blue-600 underline">
           Edit Profile
         </Link>
 
-        <Link
-          to="/verify-phone"
-          className="block text-blue-600 underline"
-        >
+        <Link to="/verify-phone" className="block text-blue-600 underline">
           Verify Phone Number
         </Link>
 
-        {/* ✅ EXISTING */}
-        <Link
-          to="/my-services"
-          className="block text-blue-600 underline"
-        >
+        <Link to="/my-services" className="block text-blue-600 underline">
           My Services
         </Link>
       </div>
 
       {/* ===============================
-          ✅ NEW: SERVICE PROVIDER CTA
-          (CUSTOMERS ONLY)
+          ✅ SERVICE PROVIDER CTA
+          (ALL NON-ADMIN USERS)
       =============================== */}
-      {user.role === "customer" && !hasServices && (
+      {user.role !== "admin" && !hasServices && (
         <div className="mt-8 p-6 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white">
           <h3 className="text-xl font-bold mb-2">
             Become a Service Provider
