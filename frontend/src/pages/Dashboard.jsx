@@ -3,8 +3,15 @@ import { useAuth } from "../context/AuthContext";
 import PageWrapper from "../components/PageWrapper";
 import SellerRequestCard from "../components/SellerRequestCard";
 
+/* ✅ SAFE ADDITIONS */
+import { useEffect, useState } from "react";
+import api from "../api/axios";
+
 function Dashboard() {
   const { user, loading } = useAuth();
+
+  /* ✅ SAFE ADDITION */
+  const [hasServices, setHasServices] = useState(false);
 
   // 🔐 Still loading auth state
   if (loading) {
@@ -19,6 +26,23 @@ function Dashboard() {
   if (!user) {
     return <Navigate to="/login" />;
   }
+
+  /* ===============================
+     CHECK IF USER HAS SERVICES
+     (SAFE, NON-BLOCKING)
+  =============================== */
+  useEffect(() => {
+    if (!user) return;
+
+    api
+      .get("/services/mine")
+      .then((res) => {
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          setHasServices(true);
+        }
+      })
+      .catch(() => {});
+  }, [user]);
 
   // ✅ SAFE ROLE DISPLAY
   const roleLabel = user.role
@@ -53,7 +77,7 @@ function Dashboard() {
           Verify Phone Number
         </Link>
 
-        {/* ✅ NEW: SERVICES DASHBOARD LINK */}
+        {/* ✅ EXISTING */}
         <Link
           to="/my-services"
           className="block text-blue-600 underline"
@@ -61,6 +85,30 @@ function Dashboard() {
           My Services
         </Link>
       </div>
+
+      {/* ===============================
+          ✅ NEW: SERVICE PROVIDER CTA
+          (CUSTOMERS ONLY)
+      =============================== */}
+      {user.role === "customer" && !hasServices && (
+        <div className="mt-8 p-6 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white">
+          <h3 className="text-xl font-bold mb-2">
+            Become a Service Provider
+          </h3>
+
+          <p className="text-sm text-blue-100 mb-4">
+            Offer your skills, get hired by local clients,
+            and grow your income on Middleman.
+          </p>
+
+          <Link
+            to="/service-requests"
+            className="inline-block bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50"
+          >
+            Apply as Service Provider
+          </Link>
+        </div>
+      )}
 
       {/* ===============================
           CUSTOMER
@@ -104,7 +152,7 @@ function Dashboard() {
           >
             Orders on My Listings
           </Link>
-       
+
           <Link
             to="/wallet"
             className="block mt-3 text-blue-600 underline"
@@ -112,7 +160,6 @@ function Dashboard() {
             Wallet & Withdrawals
           </Link>
 
-          {/* ✅ SAFE ADDITION — DOES NOT AFFECT EXISTING LOGIC */}
           <Link
             to="/withdraw"
             className="block mt-2 text-blue-600 underline"
