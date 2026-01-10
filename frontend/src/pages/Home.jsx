@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import PropertyCard from "../components/PropertyCard";
 import PageWrapper from "../components/PageWrapper";
 import { LOCATIONS } from "../utils/locations";
 import SEO from "../components/SEO";
 import marketplaceBg from "../assets/marketplace.jpg";
+import { Briefcase } from "lucide-react"; // ✅ ADDED (ICON ONLY)
 
 const CATEGORIES = [
   { label: "All", value: "all" },
@@ -22,6 +23,7 @@ const CATEGORIES = [
 
 function Home() {
   const locationObj = useLocation();
+  const navigate = useNavigate(); // ✅ ADDED
 
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -199,6 +201,34 @@ function Home() {
 
                 <button className="btn-primary">Search</button>
               </form>
+            </div>
+
+            {/* ===============================
+                ✅ SERVICES CTA (ADDED — SAFE)
+            =============================== */}
+            <div className="mt-8 max-w-3xl mx-auto">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-5 rounded-2xl shadow-lg">
+                <div className="flex items-center gap-4">
+                  <div className="bg-white/20 p-3 rounded-full">
+                    <Briefcase size={28} />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="text-xl font-bold">
+                      Need a Service Provider?
+                    </h3>
+                    <p className="text-sm text-blue-100">
+                      Find electricians, mechanics, designers, technicians & more near you.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => navigate("/services")}
+                  className="bg-white text-blue-600 font-semibold px-6 py-3 rounded-lg hover:bg-blue-50 transition"
+                >
+                  Explore Services
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -11,6 +11,7 @@ import {
   Shirt,
   Sofa,
   Hammer,
+  Briefcase   // ✅ ADDED ICON FOR SERVICES
 } from "lucide-react";
 
 const CATEGORIES = [
@@ -23,6 +24,9 @@ const CATEGORIES = [
   { label: "Fashion", value: "fashion", icon: Shirt },
   { label: "Furniture", value: "furniture", icon: Sofa },
   { label: "Building Materials", value: "building_materials", icon: Hammer },
+
+  // ✅ ADDED — SERVICES CATEGORY
+  { label: "Services", value: "services", icon: Briefcase }
 ];
 
 function Navbar() {
@@ -41,6 +45,12 @@ function Navbar() {
   };
 
   const handleCategoryClick = (category) => {
+    // ✅ IF SERVICES → ROUTE TO SERVICES PAGE
+    if (category === "services") {
+      navigate("/services");
+      return;
+    }
+
     navigate(`/?category=${category}`);
   };
 
@@ -63,7 +73,6 @@ function Navbar() {
           Middleman
         </button>
 
-
         {/* SEARCH */}
         <form
           onSubmit={handleSearchSubmit}
@@ -85,6 +94,14 @@ function Navbar() {
             className="hover:text-blue-600"
           >
             Listings
+          </Link>
+
+          {/* ✅ ADDED SERVICES LINK */}
+          <Link
+            to="/services"
+            className="hover:text-blue-600"
+          >
+            Services
           </Link>
 
           {user ? (
@@ -128,7 +145,10 @@ function Navbar() {
         <div className="max-w-7xl mx-auto px-6 py-3 flex gap-6 overflow-x-auto text-sm font-medium">
           {CATEGORIES.map((cat) => {
             const Icon = cat.icon;
-            const isActive = activeCategory === cat.value;
+            const isActive =
+              cat.value === "services"
+                ? location.pathname.startsWith("/services")
+                : activeCategory === cat.value;
 
             return (
               <button
