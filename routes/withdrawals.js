@@ -9,32 +9,43 @@ const auditLog = require("../utils/auditLog");
  * Seller requests withdrawal
  */
 router.post("/request", auth, async (req, res) => {
+  const client = await pool.connect();
+
   try {
     const userId = req.user.id;
-    const { amount } = req.body;
+    const amount = Number(req.body.amount);
 
-    if (!amount || Number(amount) <= 0) {
+    if (!amount || amount <= 0) {
       return res.status(400).json({ error: "Invalid amount" });
     }
 
-    // 1️⃣ Load wallet
-    const walletRes = await pool.query(
-      "SELECT * FROM wallets WHERE user_id = $1",
+    await client.query("BEGIN");
+
+    // 1️⃣ Lock wallet row
+    const walletRes = await client.query(
+      `
+      SELECT *
+      FROM wallets
+      WHERE user_id = $1
+      FOR UPDATE
+      `,
       [userId]
     );
 
     if (walletRes.rows.length === 0) {
+      await client.query("ROLLBACK");
       return res.status(400).json({ error: "Wallet not found" });
     }
 
     const wallet = walletRes.rows[0];
 
-    if (Number(wallet.balance) < Number(amount)) {
+    if (Number(wallet.balance) < amount) {
+      await client.query("ROLLBACK");
       return res.status(400).json({ error: "Insufficient balance" });
     }
 
-    // 2️⃣ Load user's bank details (SNAPSHOT SOURCE)
-    const bankRes = await pool.query(
+    // 2️⃣ Load user's bank details (snapshot)
+    const bankRes = await client.query(
       `
       SELECT bank_name, account_number, account_name
       FROM bank_accounts
@@ -44,6 +55,7 @@ router.post("/request", auth, async (req, res) => {
     );
 
     if (bankRes.rows.length === 0) {
+      await client.query("ROLLBACK");
       return res.status(400).json({
         error: "No bank details found. Please add bank details first."
       });
@@ -51,8 +63,8 @@ router.post("/request", auth, async (req, res) => {
 
     const bank = bankRes.rows[0];
 
-    // 3️⃣ Create withdrawal request WITH BANK SNAPSHOT
-    await pool.query(
+    // 3️⃣ Create withdrawal request
+    await client.query(
       `
       INSERT INTO withdrawals (
         user_id,
@@ -72,17 +84,20 @@ router.post("/request", auth, async (req, res) => {
       ]
     );
 
-    // 4️⃣ Deduct from wallet balance
-    await pool.query(
+    // 4️⃣ Move money: balance → pending
+    await client.query(
       `
       UPDATE wallets
-      SET balance = balance - $1
+      SET
+        balance = balance - $1,
+        pending = pending + $1,
+        updated_at = NOW()
       WHERE user_id = $2
       `,
       [amount, userId]
     );
 
-    // ❌ NO AUDIT LOG HERE (seller action)
+    await client.query("COMMIT");
 
     res.json({
       success: true,
@@ -90,14 +105,16 @@ router.post("/request", auth, async (req, res) => {
     });
 
   } catch (err) {
+    await client.query("ROLLBACK");
     console.error("Withdrawal request error:", err);
     res.status(500).json({ error: "Withdrawal failed" });
+  } finally {
+    client.release();
   }
 });
 
 /**
  * GET /withdrawals/mine
- * Seller withdrawal history
  */
 router.get("/mine", auth, async (req, res) => {
   try {
@@ -118,8 +135,7 @@ router.get("/mine", auth, async (req, res) => {
 });
 
 /**
- * GET /withdrawals/admin/pending
- * Admin: view pending withdrawals
+ * ADMIN: PENDING WITHDRAWALS
  */
 router.get("/admin/pending", auth, async (req, res) => {
   try {
@@ -144,8 +160,7 @@ router.get("/admin/pending", auth, async (req, res) => {
 });
 
 /**
- * PATCH /withdrawals/:id/approve
- * Admin approves withdrawal
+ * ADMIN APPROVE WITHDRAWAL
  */
 router.patch("/:id/approve", auth, async (req, res) => {
   try {
@@ -158,18 +173,18 @@ router.patch("/:id/approve", auth, async (req, res) => {
     const result = await pool.query(
       `
       UPDATE withdrawals
-      SET status = 'approved'
+      SET status = 'approved',
+          processed_at = NOW()
       WHERE id = $1 AND status = 'pending'
       RETURNING *
       `,
       [id]
     );
 
-    if (result.rows.length === 0) {
+    if (!result.rows.length) {
       return res.status(400).json({ error: "Invalid withdrawal" });
     }
 
-    // ✅ AUDIT LOG (ADMIN ACTION)
     await auditLog({
       adminId: req.user.id,
       action: "approve_withdrawal",
@@ -178,17 +193,17 @@ router.patch("/:id/approve", auth, async (req, res) => {
     });
 
     res.json({ success: true });
-
   } catch (err) {
     res.status(500).json({ error: "Approval failed" });
   }
 });
 
 /**
- * PATCH /withdrawals/:id/reject
- * Admin rejects withdrawal and refunds wallet
+ * ADMIN REJECT WITHDRAWAL
  */
 router.patch("/:id/reject", auth, async (req, res) => {
+  const client = await pool.connect();
+
   try {
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Access denied" });
@@ -196,43 +211,49 @@ router.patch("/:id/reject", auth, async (req, res) => {
 
     const { id } = req.params;
 
-    // 1️⃣ Load withdrawal
-    const withdrawalRes = await pool.query(
+    await client.query("BEGIN");
+
+    const withdrawalRes = await client.query(
       `
       SELECT *
       FROM withdrawals
       WHERE id = $1 AND status = 'pending'
+      FOR UPDATE
       `,
       [id]
     );
 
-    if (withdrawalRes.rows.length === 0) {
+    if (!withdrawalRes.rows.length) {
+      await client.query("ROLLBACK");
       return res.status(400).json({ error: "Invalid withdrawal" });
     }
 
     const withdrawal = withdrawalRes.rows[0];
 
-    // 2️⃣ Mark rejected
-    await pool.query(
+    await client.query(
       `
       UPDATE withdrawals
-      SET status = 'rejected'
+      SET status = 'rejected',
+          processed_at = NOW()
       WHERE id = $1
       `,
       [id]
     );
 
-    // 3️⃣ Refund wallet
-    await pool.query(
+    await client.query(
       `
       UPDATE wallets
-      SET balance = balance + $1
+      SET
+        balance = balance + $1,
+        pending = pending - $1,
+        updated_at = NOW()
       WHERE user_id = $2
       `,
       [withdrawal.amount, withdrawal.user_id]
     );
 
-    // ✅ AUDIT LOG (ADMIN ACTION)
+    await client.query("COMMIT");
+
     await auditLog({
       adminId: req.user.id,
       action: "reject_withdrawal",
@@ -243,7 +264,10 @@ router.patch("/:id/reject", auth, async (req, res) => {
     res.json({ success: true });
 
   } catch (err) {
+    await client.query("ROLLBACK");
     res.status(500).json({ error: "Rejection failed" });
+  } finally {
+    client.release();
   }
 });
 
