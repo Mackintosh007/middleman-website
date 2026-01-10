@@ -148,6 +148,12 @@ function AdminDashboard() {
             value={stats.orders}
             link="/admin/orders"
           />
+          <StatCard
+            label="Service Requests"
+            value={stats.service_requests}
+            link="/admin/services"
+          />
+
         </div>
       )}
 
