@@ -11,11 +11,15 @@ import {
   Shirt,
   Sofa,
   Hammer,
+  Briefcase, // ✅ SERVICES ICON
   MoreHorizontal,
   X
 } from "lucide-react";
 
-const CATEGORIES = [
+/* ===============================
+   PROPERTY CATEGORIES
+=============================== */
+const PROPERTY_CATEGORIES = [
   { label: "Land", value: "land", icon: Home },
   { label: "House", value: "house", icon: Building2 },
   { label: "Apartment", value: "apartment", icon: Warehouse },
@@ -24,8 +28,17 @@ const CATEGORIES = [
   { label: "Equipment", value: "equipment", icon: Wrench },
   { label: "Fashion", value: "fashion", icon: Shirt },
   { label: "Furniture", value: "furniture", icon: Sofa },
-  { label: "Building Materials", value: "building_materials", icon: Hammer },
+  { label: "Building Materials", value: "building_materials", icon: Hammer }
 ];
+
+/* ===============================
+   SERVICES ENTRY (SEPARATE)
+=============================== */
+const SERVICES_CATEGORY = {
+  label: "Services",
+  value: "services",
+  icon: Briefcase
+};
 
 function Navbar() {
   const { user, logout } = useAuth();
@@ -48,6 +61,11 @@ function Navbar() {
     setShowAll(false);
   };
 
+  const handleServicesClick = () => {
+    navigate("/services");
+    setShowAll(false);
+  };
+
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (!search.trim()) return;
@@ -55,8 +73,8 @@ function Navbar() {
     setSearch("");
   };
 
-  // ✅ Mobile: show only first 5 categories
-  const mobileCategories = CATEGORIES.slice(0, 5);
+  // Mobile: first 5 property categories
+  const mobileCategories = PROPERTY_CATEGORIES.slice(0, 5);
 
   return (
     <header className="bg-white border-b sticky top-0 z-50">
@@ -87,6 +105,11 @@ function Navbar() {
         <nav className="flex items-center gap-6 text-sm font-medium">
           <Link to="/properties" className="hover:text-blue-600">
             Listings
+          </Link>
+
+          {/* ✅ SERVICES LINK RESTORED */}
+          <Link to="/services" className="hover:text-blue-600">
+            Services
           </Link>
 
           {user ? (
@@ -124,9 +147,10 @@ function Navbar() {
         <div className="max-w-7xl mx-auto px-4 py-3 text-sm font-medium">
 
           {/* ===============================
-              🔽 MOBILE CATEGORY WRAP FIX
+              MOBILE (2-ROW WRAP)
           =============================== */}
           <div className="grid grid-cols-3 gap-3 md:hidden">
+            {/* PROPERTY CATEGORIES */}
             {mobileCategories.map((cat) => {
               const Icon = cat.icon;
               const isActive = activeCategory === cat.value;
@@ -147,7 +171,16 @@ function Navbar() {
               );
             })}
 
-            {/* MORE BUTTON */}
+            {/* ✅ SERVICES BUTTON */}
+            <button
+              onClick={handleServicesClick}
+              className="flex items-center gap-2 justify-center py-2 rounded-lg border text-gray-600"
+            >
+              <Briefcase size={16} />
+              <span className="text-xs">Services</span>
+            </button>
+
+            {/* MORE */}
             <button
               onClick={() => setShowAll(true)}
               className="flex items-center gap-2 justify-center py-2 rounded-lg border text-gray-600"
@@ -158,10 +191,10 @@ function Navbar() {
           </div>
 
           {/* ===============================
-              DESKTOP (UNCHANGED)
+              DESKTOP
           =============================== */}
-          <div className="hidden md:flex gap-6">
-            {CATEGORIES.map((cat) => {
+          <div className="hidden md:flex gap-6 items-center">
+            {PROPERTY_CATEGORIES.map((cat) => {
               const Icon = cat.icon;
               const isActive = activeCategory === cat.value;
 
@@ -180,6 +213,15 @@ function Navbar() {
                 </button>
               );
             })}
+
+            {/* ✅ SERVICES (DESKTOP) */}
+            <button
+              onClick={handleServicesClick}
+              className="flex items-center gap-2 whitespace-nowrap pb-1 text-gray-600 hover:text-blue-600"
+            >
+              <Briefcase size={16} />
+              Services
+            </button>
           </div>
         </div>
       </div>
@@ -198,7 +240,7 @@ function Navbar() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              {CATEGORIES.map((cat) => {
+              {PROPERTY_CATEGORIES.map((cat) => {
                 const Icon = cat.icon;
                 return (
                   <button
@@ -211,6 +253,15 @@ function Navbar() {
                   </button>
                 );
               })}
+
+              {/* ✅ SERVICES IN MODAL */}
+              <button
+                onClick={handleServicesClick}
+                className="flex items-center gap-3 border rounded-lg p-3"
+              >
+                <Briefcase size={18} />
+                Services
+              </button>
             </div>
           </div>
         </div>
