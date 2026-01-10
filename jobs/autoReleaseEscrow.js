@@ -35,34 +35,54 @@ async function autoReleaseEscrow() {
       const sellerPayout =
         Number(order.amount) - Number(order.platform_fee);
 
-      // ✅ RELEASE ESCROW
-      await pool.query(
-        `
-        UPDATE orders
-        SET status = 'completed',
-            released_at = NOW()
-        WHERE id = $1
-        `,
-        [order.id]
-      );
+      // 🔐 TRANSACTION PER ORDER
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
 
-      await pool.query(
-        `
-        UPDATE properties
-        SET status = 'sold', sold_date = NOW()
-        WHERE id = $1
-        `,
-        [order.property_id]
-      );
+        // 1️⃣ RELEASE ESCROW
+        await client.query(
+          `
+          UPDATE orders
+          SET status = 'completed',
+              released_at = NOW()
+          WHERE id = $1
+          `,
+          [order.id]
+        );
 
-      await pool.query(
-        `
-        UPDATE wallets
-        SET balance = balance + $1
-        WHERE user_id = $2
-        `,
-        [sellerPayout, order.seller_id]
-      );
+        // 2️⃣ MARK PROPERTY SOLD
+        await client.query(
+          `
+          UPDATE properties
+          SET status = 'sold',
+              sold_date = NOW()
+          WHERE id = $1
+          `,
+          [order.property_id]
+        );
+
+        // 3️⃣ ✅ SAFE WALLET CREDIT (FIX)
+        await client.query(
+          `
+          INSERT INTO wallets (user_id, balance)
+          VALUES ($1, $2)
+          ON CONFLICT (user_id)
+          DO UPDATE SET
+            balance = wallets.balance + EXCLUDED.balance,
+            updated_at = NOW()
+          `,
+          [order.seller_id, sellerPayout]
+        );
+
+        await client.query("COMMIT");
+
+      } catch (txErr) {
+        await client.query("ROLLBACK");
+        throw txErr;
+      } finally {
+        client.release();
+      }
 
       // 📧 EMAIL SELLER
       await sendEmail({
@@ -72,7 +92,7 @@ async function autoReleaseEscrow() {
           <p>Hello ${order.seller_name},</p>
           <p>The escrow for <strong>${order.title}</strong> has been automatically released.</p>
           <p><strong>Amount credited:</strong> ₦${sellerPayout.toLocaleString()}</p>
-          <p>This happened because delivery was confirmed and 36 hours elapsed.</p>
+          <p>This happened because delivery was confirmed and ${AUTO_RELEASE_HOURS} hours elapsed.</p>
         `,
       });
 

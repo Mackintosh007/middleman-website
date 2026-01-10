@@ -241,96 +241,104 @@ router.patch(
 );
 
 /**
- * ===============================
- * BUYER CONFIRM DELIVERY (ESCROW RELEASE)
- * ===============================
+ * BUYER CONFIRMS DELIVERY
+ * PATCH /api/orders/:id/confirm-delivery
  */
-router.patch("/:id/confirm-delivery", auth, async (req, res) => {
-  try {
-    const { id } = req.params;
+router.patch(
+  "/:id/confirm-delivery",
+  auth,
+  async (req, res) => {
+    const client = await pool.connect();
 
-    const orderRes = await pool.query(
-      `
-      SELECT 
-        o.*,
-        p.title,
-        s.email AS seller_email,
-        s.first_name AS seller_name,
-        b.email AS buyer_email,
-        b.first_name AS buyer_name
-      FROM orders o
-      JOIN properties p ON p.id = o.property_id
-      JOIN users s ON s.id = o.seller_id
-      JOIN users b ON b.id = o.buyer_id
-      WHERE o.id = $1
-      `,
-      [id]
-    );
+    try {
+      const orderId = req.params.id;
 
-    if (!orderRes.rows.length) {
-      return res.status(404).json({ error: "Order not found" });
-    }
+      await client.query("BEGIN");
 
-    const order = orderRes.rows[0];
+      // 1️⃣ Load order WITH LOCK
+      const orderRes = await client.query(
+        `
+        SELECT *
+        FROM orders
+        WHERE id = $1
+          AND buyer_id = $2
+        FOR UPDATE
+        `,
+        [orderId, req.user.id]
+      );
 
-    if (order.buyer_id !== req.user.id) {
-      return res.status(403).json({ error: "Unauthorized" });
-    }
+      if (!orderRes.rows.length) {
+        await client.query("ROLLBACK");
+        return res.status(404).json({ error: "Order not found" });
+      }
 
-    if (order.status !== "paid" || !order.delivery_confirmed) {
-      return res.status(400).json({
-        error: "Delivery not yet completed",
+      const order = orderRes.rows[0];
+
+      // 2️⃣ Prevent double release
+      if (order.released_at) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({
+          error: "Escrow already released"
+        });
+      }
+
+      // 3️⃣ Seller payout calculation
+      const sellerPayout =
+        Number(order.amount) - Number(order.platform_fee);
+
+      // 4️⃣ Mark order completed + delivery confirmed
+      await client.query(
+        `
+        UPDATE orders
+        SET
+          delivery_confirmed = true,
+          status = 'completed',
+          released_at = NOW()
+        WHERE id = $1
+        `,
+        [order.id]
+      );
+
+      // 5️⃣ Credit seller wallet (CREATE IF NOT EXISTS)
+      await client.query(
+        `
+        INSERT INTO wallets (user_id, balance)
+        VALUES ($1, $2)
+        ON CONFLICT (user_id)
+        DO UPDATE SET
+          balance = wallets.balance + $2,
+          updated_at = NOW()
+        `,
+        [order.seller_id, sellerPayout]
+      );
+
+      // 6️⃣ Mark property sold
+      await client.query(
+        `
+        UPDATE properties
+        SET status = 'sold',
+            sold_date = NOW()
+        WHERE id = $1
+        `,
+        [order.property_id]
+      );
+
+      await client.query("COMMIT");
+
+      res.json({
+        success: true,
+        message: "Delivery confirmed and seller paid",
+        seller_payout: sellerPayout
       });
+
+    } catch (err) {
+      await client.query("ROLLBACK");
+      console.error("CONFIRM DELIVERY ERROR:", err);
+      res.status(500).json({ error: "Failed to confirm delivery" });
+    } finally {
+      client.release();
     }
-
-    const sellerPayout =
-      Number(order.amount) - Number(order.platform_fee);
-
-    // ✅ ONLY ADDITION IS HERE
-    await pool.query(
-      `UPDATE orders
-       SET status = 'completed',
-           escrow_status = 'released',
-           released_at = NOW()
-       WHERE id = $1`,
-      [id]
-    );
-
-    await pool.query(
-      "UPDATE properties SET status = 'sold', sold_date = NOW() WHERE id = $1",
-      [order.property_id]
-    );
-
-    await pool.query(
-      "UPDATE wallets SET balance = balance + $1 WHERE user_id = $2",
-      [sellerPayout, order.seller_id]
-    );
-
-    await auditLog({
-      adminId: null,
-      action: "escrow_released",
-      entityType: "order",
-      entityId: id,
-    });
-
-    await sendEmail({
-      to: order.seller_email,
-      subject: "Escrow Released – Funds Available",
-      html: `<p>Hello ${order.seller_name},</p>
-             <p>Your escrow funds have been released.</p>`,
-    });
-
-    await sendEmail({
-      to: order.buyer_email,
-      subject: "Delivery Confirmed",
-      html: `<p>Hello ${order.buyer_name},</p>
-             <p>Delivery confirmed successfully.</p>`,
-    });
-
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
   }
-});
+);
 
 module.exports = router;
