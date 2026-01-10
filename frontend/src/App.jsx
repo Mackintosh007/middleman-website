@@ -49,7 +49,7 @@ import AdminSellerRequests from "./pages/AdminSellerRequests";
 import AdminListings from "./pages/AdminListings";
 import AdminAuditLogs from "./pages/AdminAuditLogs";
 /* SERVICES */
-import Services from "./pages/TEMP";
+import Services from "./pages/Services";
 import ServiceDetails from "./pages/ServiceDetails";
 import AdminServices from "./pages/AdminServices";
 import ServiceDashboard from "./pages/ServiceDashboard";
