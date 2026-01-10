@@ -7,7 +7,9 @@ import api from "../api/axios";
 
 function Dashboard() {
   const { user, loading } = useAuth();
-  const [hasServices, setHasServices] = useState(false);
+
+  const [servicesCount, setServicesCount] = useState(0);
+  const [loadingServices, setLoadingServices] = useState(true);
 
   // 🔐 Still loading auth state
   if (loading) {
@@ -24,29 +26,30 @@ function Dashboard() {
   }
 
   /* ===============================
-     CHECK IF USER HAS SERVICES
-     (SAFE, NON-BLOCKING)
+     LOAD USER SERVICES COUNT
+     (READ-ONLY, SAFE)
   =============================== */
   useEffect(() => {
     api
       .get("/services/mine")
-      .then((res) => {
-        if (Array.isArray(res.data) && res.data.length > 0) {
-          setHasServices(true);
+      .then(res => {
+        if (Array.isArray(res.data)) {
+          setServicesCount(res.data.length);
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoadingServices(false));
   }, []);
 
   const roleLabel = user.role
     ? user.role.replace("_", " ")
     : "user";
 
+  const reachedServiceLimit = servicesCount >= 2;
+
   return (
     <PageWrapper>
-      <h1 className="text-2xl font-bold">
-        Dashboard
-      </h1>
+      <h1 className="text-2xl font-bold">Dashboard</h1>
 
       <p className="mt-4 text-gray-600">
         Logged in as <strong>{roleLabel}</strong>
@@ -70,26 +73,56 @@ function Dashboard() {
       </div>
 
       {/* ===============================
-          ✅ SERVICE PROVIDER CTA
-          (ALL NON-ADMIN USERS)
+          SERVICE PROVIDER CTA
+          (CUSTOMER + SELLER)
       =============================== */}
-      {user.role !== "admin" && !hasServices && (
-        <div className="mt-8 p-6 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white">
-          <h3 className="text-xl font-bold mb-2">
+      {user.role !== "admin" && (
+        <div
+          className={`mt-8 p-6 rounded-xl ${
+            reachedServiceLimit
+              ? "bg-gray-100 border border-gray-300"
+              : "bg-gradient-to-r from-indigo-600 to-blue-600 text-white"
+          }`}
+        >
+          <h3
+            className={`text-xl font-bold mb-2 ${
+              reachedServiceLimit ? "text-gray-700" : ""
+            }`}
+          >
             Become a Service Provider
           </h3>
 
-          <p className="text-sm text-blue-100 mb-4">
-            Offer your skills, get hired by local clients,
-            and grow your income on Middleman.
+          <p
+            className={`text-sm mb-4 ${
+              reachedServiceLimit
+                ? "text-gray-600"
+                : "text-blue-100"
+            }`}
+          >
+            {reachedServiceLimit
+              ? "You have reached the maximum of 2 services allowed per account."
+              : "Offer your skills, get hired by local clients, and grow your income on Middleman."}
           </p>
 
-          <Link
-            to="/service-requests"
-            className="inline-block bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50"
-          >
-            Apply as Service Provider
-          </Link>
+          {loadingServices ? (
+            <p className="text-sm text-gray-500">
+              Checking service slots…
+            </p>
+          ) : reachedServiceLimit ? (
+            <button
+              disabled
+              className="bg-gray-300 text-gray-600 px-6 py-3 rounded-lg font-semibold cursor-not-allowed"
+            >
+              Service limit reached (2 / 2)
+            </button>
+          ) : (
+            <Link
+              to="/service-requests"
+              className="inline-block bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50"
+            >
+              Apply as Service Provider ({servicesCount}/2 used)
+            </Link>
+          )}
         </div>
       )}
 
