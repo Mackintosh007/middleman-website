@@ -256,7 +256,11 @@ function App() {
 
         <Route
           path="/admin/services"
-          element={<AdminServices />}
+          element={
+            <ProtectedRoute role="admin">
+              <AdminServices />
+            </ProtectedRoute>
+          }
         />
 
         <Route

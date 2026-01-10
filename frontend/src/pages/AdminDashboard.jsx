@@ -136,7 +136,7 @@ function AdminDashboard() {
           <StatCard
             label="Seller Requests"
             value={stats.seller_requests}
-            link="/admin"
+            link="/admin/seller-requests"
           />
           <StatCard
             label="Withdrawals"
@@ -150,33 +150,31 @@ function AdminDashboard() {
           />
         </div>
       )}
-      <a
-          href="/admin/listings"
-          className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-        >
-          🏘 Listings Moderation
-        </a>
-      <a
-          href="/admin/seller-requests"
-          className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
-        >
-          🧾 Seller Requests
-        </a>
-      <a
-        href="/admin/orders"
-        className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-      >
-        📦 Escrow Orders
-      </a>
 
-
-      {/* QUICK ACTIONS */}
+      {/* ===============================
+          QUICK ACTIONS (UPDATED)
+      =============================== */}
       <div className="mb-10 flex gap-4 flex-wrap">
         <a
           href="/admin/users"
           className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-900"
         >
           👤 Manage Users
+        </a>
+
+        <a
+          href="/admin/seller-requests"
+          className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
+        >
+          🧾 Seller Requests
+        </a>
+
+        {/* ✅ NEW: SERVICE REQUESTS LINK */}
+        <a
+          href="/admin/services"
+          className="px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700"
+        >
+          🛠 Service Requests
         </a>
 
         <a
@@ -187,17 +185,17 @@ function AdminDashboard() {
         </a>
 
         <a
-          href="/admin/revenue"
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          📊 Platform Revenue
-        </a>
-
-        <a
           href="/admin/orders"
           className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
         >
           📦 Escrow Orders
+        </a>
+
+        <a
+          href="/admin/revenue"
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          📊 Platform Revenue
         </a>
       </div>
 
@@ -279,86 +277,6 @@ function AdminDashboard() {
                   className="bg-red-600 text-white px-3 py-1 rounded"
                 >
                   Reject
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </section>
-
-      {/* ===============================
-          LISTINGS MODERATION
-      =============================== */}
-      <section className="mb-14">
-        <h2 className="text-xl font-semibold mb-4">
-          Listings Moderation
-        </h2>
-
-        {loadingListings ? (
-          <p>Loading listings...</p>
-        ) : listings.length === 0 ? (
-          <p>No listings found.</p>
-        ) : (
-          listings.map(l => (
-            <div
-              key={l.id}
-              className="border p-4 mb-4 rounded bg-white"
-            >
-              <p className="font-semibold">{l.title}</p>
-              <p className="text-sm text-gray-600">
-                {l.property_type} — ₦
-                {Number(l.price).toLocaleString()}
-              </p>
-
-              <button
-                onClick={() =>
-                  toggleListingStatus(l.id, l.status)
-                }
-                className={`mt-3 px-3 py-1 rounded text-white ${
-                  l.status === "active"
-                    ? "bg-red-600"
-                    : "bg-green-600"
-                }`}
-              >
-                {l.status === "active"
-                  ? "Deactivate"
-                  : "Activate"}
-              </button>
-            </div>
-          ))
-        )}
-      </section>
-
-      {/* ===============================
-          ESCROW ORDERS
-      =============================== */}
-      <section>
-        <h2 className="text-xl font-semibold mb-4">
-          Pending Escrow Orders
-        </h2>
-
-        {escrowOrders.length === 0 ? (
-          <p>No pending escrow orders.</p>
-        ) : (
-          escrowOrders.map(o => (
-            <div
-              key={o.id}
-              className="border p-4 mb-4 rounded bg-white"
-            >
-              <p className="font-semibold">{o.title}</p>
-              <p className="text-sm">
-                Buyer: {o.buyer_email}
-              </p>
-              <p className="text-sm">
-                Amount: ₦{Number(o.amount).toLocaleString()}
-              </p>
-
-              <div className="mt-3">
-                <button
-                  onClick={() => updateEscrow(o.id)}
-                  className="bg-green-600 text-white px-3 py-1 rounded"
-                >
-                  Release Escrow
                 </button>
               </div>
             </div>

@@ -15,15 +15,19 @@ function RequestServiceProvider() {
       location: "",
       phone: "",
       whatsapp: "",
-      images: []
-    }
+      images: [],
+    },
   ]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  /* ===============================
+     HELPERS
+  =============================== */
   const addService = () => {
     if (services.length >= 2) return;
+
     setServices([
       ...services,
       {
@@ -32,8 +36,8 @@ function RequestServiceProvider() {
         location: "",
         phone: "",
         whatsapp: "",
-        images: []
-      }
+        images: [],
+      },
     ]);
   };
 
@@ -43,40 +47,64 @@ function RequestServiceProvider() {
     setServices(copy);
   };
 
+  /* ===============================
+     SUBMIT (MATCHES BACKEND)
+  =============================== */
   const submit = async (e) => {
     e.preventDefault();
     setError("");
 
-    if (services.some(s => !s.category || !s.description || !s.location)) {
+    // ✅ Validation
+    if (
+      services.some(
+        (s) => !s.category || !s.description || !s.location
+      )
+    ) {
       return setError("All service fields are required");
     }
 
-    if (services.some(s => s.images.length === 0)) {
+    if (services.some((s) => s.images.length === 0)) {
       return setError("Each service must have at least one image");
     }
 
-    const fd = new FormData();
-    fd.append("services", JSON.stringify(
-      services.map(({ images, ...rest }) => rest)
-    ));
-
-    services.forEach((svc, i) => {
-      svc.images.forEach(img => {
-        fd.append(`service_${i + 1}_images`, img);
-      });
-    });
-
     setLoading(true);
+
     try {
-      await api.post("/service-requests", fd, {
-        headers: { "Content-Type": "multipart/form-data" }
+      const formData = new FormData();
+
+      // 1️⃣ Services JSON
+      formData.append(
+        "services",
+        JSON.stringify(
+          services.map(({ images, ...rest }) => rest)
+        )
+      );
+
+      // 2️⃣ Images (MUST MATCH BACKEND FIELD NAMES)
+      services.forEach((service, index) => {
+        service.images.forEach((img) => {
+          formData.append(
+            `service_${index + 1}_images`,
+            img
+          );
+        });
       });
 
-      alert("Service request submitted successfully");
-      navigate("/my-services");
+      // 3️⃣ Submit single request
+      await api.post("/services/request", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      // 4️⃣ Success
+      navigate("/my-services", { replace: true });
 
     } catch (err) {
-      setError(err.response?.data?.error || "Submission failed");
+      setError(
+        err.response?.data?.error ||
+          "Service request failed"
+      );
     } finally {
       setLoading(false);
     }
@@ -88,51 +116,71 @@ function RequestServiceProvider() {
         Become a Service Provider
       </h1>
 
-      {error && <p className="text-red-600 mb-4">{error}</p>}
+      {error && (
+        <p className="text-red-600 mb-4">{error}</p>
+      )}
 
-      <form onSubmit={submit} className="space-y-6 max-w-xl">
+      <form
+        onSubmit={submit}
+        className="space-y-6 max-w-xl"
+      >
         {services.map((s, i) => (
-          <div key={i} className="border p-4 rounded">
+          <div
+            key={i}
+            className="border p-4 rounded"
+          >
             <h3 className="font-semibold mb-2">
               Service {i + 1}
             </h3>
 
+            {/* CATEGORY */}
             <select
               className="input"
-              onChange={e =>
+              value={s.category}
+              onChange={(e) =>
                 updateService(i, "category", e.target.value)
               }
             >
               <option value="">Select Service</option>
-              {SERVICES.map(svc => (
-                <option key={svc} value={svc}>{svc}</option>
+              {SERVICES.map((svc) => (
+                <option key={svc} value={svc}>
+                  {svc}
+                </option>
               ))}
             </select>
 
+            {/* DESCRIPTION */}
             <textarea
               className="input mt-2"
               placeholder="Describe your service"
-              onChange={e =>
+              value={s.description}
+              onChange={(e) =>
                 updateService(i, "description", e.target.value)
               }
             />
 
+            {/* LOCATION */}
             <select
               className="input mt-2"
-              onChange={e =>
+              value={s.location}
+              onChange={(e) =>
                 updateService(i, "location", e.target.value)
               }
             >
               <option value="">Select location</option>
-              {LOCATIONS.map(l => (
-                <option key={l} value={l}>{l}</option>
+              {LOCATIONS.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
               ))}
             </select>
 
+            {/* CONTACT */}
             <input
               className="input mt-2"
               placeholder="Phone"
-              onChange={e =>
+              value={s.phone}
+              onChange={(e) =>
                 updateService(i, "phone", e.target.value)
               }
             />
@@ -140,21 +188,34 @@ function RequestServiceProvider() {
             <input
               className="input mt-2"
               placeholder="WhatsApp"
-              onChange={e =>
+              value={s.whatsapp}
+              onChange={(e) =>
                 updateService(i, "whatsapp", e.target.value)
               }
             />
 
+            {/* IMAGES */}
             <input
               type="file"
               multiple
               accept="image/*"
               className="mt-3"
-              onChange={e =>
-                updateService(i, "images", Array.from(e.target.files))
-              }
-              required
+              onChange={(e) => {
+                const files = Array.from(e.target.files);
+
+                if (files.length > 5) {
+                  alert("Maximum of 5 images allowed");
+                  e.target.value = null;
+                  return;
+                }
+
+                updateService(i, "images", files);
+              }}
             />
+
+            <p className="text-xs text-gray-500 mt-1">
+              {s.images.length}/5 images selected
+            </p>
           </div>
         ))}
 
@@ -168,7 +229,10 @@ function RequestServiceProvider() {
           </button>
         )}
 
-        <button disabled={loading} className="btn-primary">
+        <button
+          disabled={loading}
+          className="btn-primary"
+        >
           {loading ? "Submitting..." : "Submit Request"}
         </button>
       </form>

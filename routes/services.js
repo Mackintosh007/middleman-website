@@ -2,24 +2,26 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../db");
 const auth = require("../middleware/auth");
-const upload = require("../middleware/upload");
+const uploadServiceImages = require("../middleware/serviceUpload");
 const cloudinary = require("../utils/cloudinary");
 
 /**
- * ===============================
+ * ======================================================
  * REQUEST SERVICE PROVIDER
- * ===============================
+ * POST /api/services/request
  * - User can submit 1 or 2 services
- * - Each service MUST have images
+ * - Each service MUST have at least 1 image
+ * - Max 5 images per service
  * - Transaction-safe
+ * ======================================================
  */
 router.post(
   "/request",
   auth,
-  upload.any(),
+  uploadServiceImages.any(),
   async (req, res) => {
     const client = await pool.connect();
-    let uploadedImages = [];
+    const uploadedImages = [];
 
     try {
       const { services } = req.body;
@@ -31,6 +33,18 @@ router.post(
 
       if (parsedServices.length > 2) {
         return res.status(400).json({ error: "Maximum of 2 services allowed" });
+      }
+
+      // ✅ enforce max 5 images per service slot
+      for (let i = 1; i <= parsedServices.length; i++) {
+        const imgs = req.files.filter(
+          f => f.fieldname === `service_${i}_images`
+        );
+        if (imgs.length > 5) {
+          return res.status(400).json({
+            error: "Maximum of 5 images allowed per service"
+          });
+        }
       }
 
       await client.query("BEGIN");
@@ -45,14 +59,14 @@ router.post(
 
       const serviceRequestId = reqRes.rows[0].id;
 
-      // 2️⃣ Create services
+      // 2️⃣ Create services + images
       for (let i = 0; i < parsedServices.length; i++) {
         const svc = parsedServices[i];
 
         const svcRes = await client.query(
           `
           INSERT INTO services
-          (service_request_id, user_id, service_slot, category, description, location, phone, whatsapp)
+            (service_request_id, user_id, service_slot, category, description, location, phone, whatsapp)
           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
           RETURNING id
           `,
@@ -70,7 +84,6 @@ router.post(
 
         const serviceId = svcRes.rows[0].id;
 
-        // 3️⃣ Match images to service_slot
         const imagesForService = req.files.filter(
           f => f.fieldname === `service_${i + 1}_images`
         );
@@ -81,12 +94,9 @@ router.post(
 
         for (const img of imagesForService) {
           uploadedImages.push(img.path);
-
           await client.query(
-            `
-            INSERT INTO service_images (service_id, image_url)
-            VALUES ($1,$2)
-            `,
+            `INSERT INTO service_images (service_id, image_url)
+             VALUES ($1,$2)`,
             [serviceId, img.path]
           );
         }
@@ -102,6 +112,7 @@ router.post(
     } catch (err) {
       await client.query("ROLLBACK");
 
+      // 🔥 cleanup Cloudinary uploads on failure
       for (const url of uploadedImages) {
         const publicId = url.split("/").slice(-2).join("/").split(".")[0];
         await cloudinary.uploader.destroy(publicId);
@@ -109,7 +120,6 @@ router.post(
 
       console.error("SERVICE REQUEST ERROR:", err);
       res.status(500).json({ error: err.message });
-
     } finally {
       client.release();
     }
@@ -117,7 +127,38 @@ router.post(
 );
 
 /* ======================================================
-   ✅ PUBLIC: BROWSE ACTIVE SERVICES
+   🔐 USER: MY SERVICES
+   GET /api/services/mine
+====================================================== */
+router.get("/mine", auth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `
+      SELECT
+        id,
+        category,
+        description,
+        location,
+        phone,
+        whatsapp,
+        status,
+        created_at
+      FROM services
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+      `,
+      [req.user.id]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("MY SERVICES ERROR:", err);
+    res.status(500).json({ error: "Failed to load services" });
+  }
+});
+
+/* ======================================================
+   PUBLIC: BROWSE ACTIVE SERVICES
    GET /api/services
 ====================================================== */
 router.get("/", async (req, res) => {
@@ -160,7 +201,7 @@ router.get("/", async (req, res) => {
 });
 
 /* ======================================================
-   ✅ PUBLIC: SINGLE SERVICE DETAILS
+   PUBLIC: SINGLE SERVICE
    GET /api/services/:id
 ====================================================== */
 router.get("/:id", async (req, res) => {
@@ -169,14 +210,10 @@ router.get("/:id", async (req, res) => {
 
     const serviceRes = await pool.query(
       `
-      SELECT
-        s.*,
-        u.first_name,
-        u.email
+      SELECT s.*, u.first_name, u.email
       FROM services s
       JOIN users u ON u.id = s.user_id
-      WHERE s.id = $1
-      AND s.status = 'active'
+      WHERE s.id = $1 AND s.status = 'active'
       `,
       [serviceId]
     );
@@ -190,7 +227,6 @@ router.get("/:id", async (req, res) => {
       [serviceId]
     );
 
-    // ⭐ RATING STATS (ADDED)
     const ratingRes = await pool.query(
       `
       SELECT
@@ -215,33 +251,49 @@ router.get("/:id", async (req, res) => {
 });
 
 /* ======================================================
-   🔐 USER: MY SERVICES
-   GET /api/services/mine
+   🔐 USER: UPDATE OWN SERVICE (NO CATEGORY CHANGE)
+   PUT /api/services/:id
 ====================================================== */
-router.get("/mine", auth, async (req, res) => {
+router.put("/:id", auth, async (req, res) => {
   try {
+    const { description, location, phone, whatsapp } = req.body;
+    const serviceId = req.params.id;
+
+    if (!description || !location || !phone || !whatsapp) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+
     const result = await pool.query(
       `
-      SELECT
-        id,
-        category,
+      UPDATE services
+      SET
+        description = $1,
+        location = $2,
+        phone = $3,
+        whatsapp = $4,
+        updated_at = NOW()
+      WHERE id = $5 AND user_id = $6
+      RETURNING *
+      `,
+      [
         description,
         location,
         phone,
         whatsapp,
-        status,
-        created_at
-      FROM services
-      WHERE user_id = $1
-      ORDER BY created_at DESC
-      `,
-      [req.user.id]
+        serviceId,
+        req.user.id
+      ]
     );
 
-    res.json(result.rows);
+    if (!result.rows.length) {
+      return res.status(403).json({ error: "Unauthorized or service not found" });
+    }
+
+    res.json(result.rows[0]);
+
   } catch (err) {
-    console.error("MY SERVICES ERROR:", err);
-    res.status(500).json({ error: "Failed to load services" });
+    console.error("UPDATE SERVICE ERROR:", err);
+    res.status(500).json({ error: "Failed to update service" });
   }
 });
 
@@ -258,37 +310,24 @@ router.patch("/:id/status", auth, async (req, res) => {
       return res.status(400).json({ error: "Invalid status" });
     }
 
-    const serviceRes = await pool.query(
+    const result = await pool.query(
       `
-      SELECT id, user_id, status
-      FROM services
-      WHERE id = $1
+      UPDATE services
+      SET status = $1
+      WHERE id = $2 AND user_id = $3 AND status != 'pending'
+      RETURNING *
       `,
-      [serviceId]
+      [status, serviceId, req.user.id]
     );
 
-    if (!serviceRes.rows.length) {
-      return res.status(404).json({ error: "Service not found" });
-    }
-
-    const service = serviceRes.rows[0];
-
-    if (service.user_id !== req.user.id) {
-      return res.status(403).json({ error: "Unauthorized" });
-    }
-
-    if (service.status === "pending") {
+    if (!result.rows.length) {
       return res.status(403).json({
-        error: "Service must be approved before activation"
+        error: "Unauthorized or service pending approval"
       });
     }
 
-    await pool.query(
-      `UPDATE services SET status = $1 WHERE id = $2`,
-      [status, serviceId]
-    );
-
     res.json({ success: true });
+
   } catch (err) {
     console.error("SERVICE STATUS ERROR:", err);
     res.status(500).json({ error: "Failed to update service" });
@@ -296,178 +335,24 @@ router.patch("/:id/status", auth, async (req, res) => {
 });
 
 /* ======================================================
-   🔐 ADMIN: VIEW PENDING SERVICES
-   GET /api/services/admin/pending
+   🔐 ADMIN: PENDING SERVICES
 ====================================================== */
-router.get(
-  "/admin/pending",
-  auth,
-  async (req, res) => {
-    try {
-      if (req.user.role !== "admin") {
-        return res.status(403).json({ error: "Access denied" });
-      }
-
-      const result = await pool.query(
-        `
-        SELECT
-          s.*,
-          u.email AS user_email
-        FROM services s
-        JOIN users u ON u.id = s.user_id
-        WHERE s.status = 'pending'
-        ORDER BY s.created_at ASC
-        `
-      );
-
-      res.json(result.rows);
-    } catch (err) {
-      console.error("LOAD PENDING SERVICES ERROR:", err);
-      res.status(500).json({ error: "Failed to load services" });
-    }
+router.get("/admin/pending", auth, async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ error: "Access denied" });
   }
-);
 
-/* ======================================================
-   🔐 ADMIN: APPROVE SERVICE
-   PATCH /api/services/:id/approve
-====================================================== */
-router.patch(
-  "/:id/approve",
-  auth,
-  async (req, res) => {
-    try {
-      if (req.user.role !== "admin") {
-        return res.status(403).json({ error: "Access denied" });
-      }
-
-      const { id } = req.params;
-
-      const result = await pool.query(
-        `
-        UPDATE services
-        SET status = 'active'
-        WHERE id = $1 AND status = 'pending'
-        RETURNING *
-        `,
-        [id]
-      );
-
-      if (!result.rows.length) {
-        return res
-          .status(400)
-          .json({ error: "Invalid or already processed service" });
-      }
-
-      res.json({ success: true, service: result.rows[0] });
-    } catch (err) {
-      console.error("APPROVE SERVICE ERROR:", err);
-      res.status(500).json({ error: "Approval failed" });
-    }
-  }
-);
-
-/* ======================================================
-   🔐 ADMIN: REJECT SERVICE
-   PATCH /api/services/:id/reject
-====================================================== */
-router.patch(
-  "/:id/reject",
-  auth,
-  async (req, res) => {
-    try {
-      if (req.user.role !== "admin") {
-        return res.status(403).json({ error: "Access denied" });
-      }
-
-      const { id } = req.params;
-
-      const result = await pool.query(
-        `
-        UPDATE services
-        SET status = 'inactive'
-        WHERE id = $1 AND status = 'pending'
-        RETURNING *
-        `,
-        [id]
-      );
-
-      if (!result.rows.length) {
-        return res
-          .status(400)
-          .json({ error: "Invalid or already processed service" });
-      }
-
-      res.json({ success: true });
-    } catch (err) {
-      console.error("REJECT SERVICE ERROR:", err);
-      res.status(500).json({ error: "Rejection failed" });
-    }
-  }
-);
-
-/* ======================================================
-   ⭐ USER: CREATE SERVICE REVIEW
-   POST /api/services/:id/review
-====================================================== */
-router.post("/:id/review", auth, async (req, res) => {
-  try {
-    const { rating, comment } = req.body;
-    const serviceId = req.params.id;
-
-    if (!rating || rating < 1 || rating > 5) {
-      return res.status(400).json({ error: "Invalid rating" });
-    }
-
-    // ❌ Prevent duplicate review (DB also enforces this)
-    // 🔒 Prevent provider reviewing own service
-    const serviceRes = await pool.query(
+  const result = await pool.query(
     `
-    SELECT user_id
-    FROM services
-    WHERE id = $1
-    `,
-    [serviceId]
-    );
-
-    if (!serviceRes.rows.length) {
-    return res.status(404).json({ error: "Service not found" });
-    }
-
-    if (Number(serviceRes.rows[0].user_id) === Number(req.user.id)) {
-    return res.status(403).json({
-        error: "You cannot review your own service"
-    });
-    }
-
-    const existing = await pool.query(
+    SELECT s.*, u.email AS user_email
+    FROM services s
+    JOIN users u ON u.id = s.user_id
+    WHERE s.status = 'pending'
+    ORDER BY s.created_at ASC
     `
-    SELECT id FROM service_reviews
-    WHERE service_id = $1 AND reviewer_id = $2
-    `,
-    [serviceId, req.user.id]
-    );
+  );
 
-
-    if (existing.rows.length > 0) {
-      return res.status(400).json({ error: "You already reviewed this service" });
-    }
-
-    await pool.query(
-      `
-      INSERT INTO service_reviews
-        (service_id, reviewer_id, rating, comment)
-        VALUES ($1,$2,$3,$4)
-
-      `,
-      [serviceId, req.user.id, rating, comment || null]
-    );
-
-    res.status(201).json({ success: true });
-  } catch (err) {
-    console.error("SERVICE REVIEW ERROR:", err);
-    res.status(500).json({ error: "Failed to submit review" });
-  }
+  res.json(result.rows);
 });
 
 module.exports = router;
