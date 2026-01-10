@@ -86,7 +86,7 @@ router.post(
       for (const img of uploadedImages) {
         await client.query(
           `
-          INSERT INTO images (property_id, image_url)
+          INSERT INTO property_images (property_id, image_url)
           VALUES ($1, $2)
           `,
           [property.id, img.url]
