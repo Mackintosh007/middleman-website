@@ -341,14 +341,6 @@ router.patch(
   }
 );
 
-module.exports = router;
-const express = require("express");
-const pool = require("../db");
-const auth = require("../middleware/auth");
-const roles = require("../middleware/roles");
-const sendEmail = require("../utils/sendEmail");
-const axios = require("axios");
-const auditLog = require("../utils/auditLog");
 
 /**
  * ===============================
