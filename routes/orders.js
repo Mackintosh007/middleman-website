@@ -686,4 +686,36 @@ router.patch(
   }
 );
 
+/**
+ * ===============================
+ * ADMIN: PENDING ESCROW ORDERS
+ * GET /api/orders/admin/pending
+ * ===============================
+ */
+router.get("/admin/pending", auth, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    const result = await pool.query(
+      `
+      SELECT 
+        o.*,
+        u.email AS buyer_email
+      FROM orders o
+      JOIN users u ON u.id = o.buyer_id
+      WHERE o.status = 'paid'
+      ORDER BY o.created_at ASC
+      `
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("ADMIN PENDING ORDERS ERROR:", err);
+    res.status(500).json({ error: "Failed to load orders" });
+  }
+});
+
+
 module.exports = router;
