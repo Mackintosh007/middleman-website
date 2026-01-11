@@ -177,6 +177,16 @@ router.patch("/:id/approve", auth, async (req, res) => {
     const withdrawal = wRes.rows[0];
     let recipientCode = withdrawal.paystack_recipient_code;
 
+    // ✅ Normalize bank name safely
+    const bankCode = banks[withdrawal.bank_name?.trim()];
+
+    if (!bankCode) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({
+        error: "Unsupported bank for payout"
+      });
+    }
+
     // 2️⃣ Create recipient ONCE if missing
     if (!recipientCode) {
       const recipientRes = await axios.post(
@@ -185,7 +195,7 @@ router.patch("/:id/approve", auth, async (req, res) => {
           type: "nuban",
           name: withdrawal.account_name,
           account_number: withdrawal.account_number,
-          bank_code: banks[withdrawal.bank_name],
+          bank_code: bankCode,
           currency: "NGN"
         },
         {
@@ -219,7 +229,7 @@ router.patch("/:id/approve", auth, async (req, res) => {
       }
     );
 
-    // 4️⃣ Mark approved (final settlement via webhook)
+    // 4️⃣ Mark approved
     await client.query(
       `
       UPDATE withdrawals
@@ -230,6 +240,18 @@ router.patch("/:id/approve", auth, async (req, res) => {
       WHERE id = $2
       `,
       [transferRes.data.data.reference, withdrawal.id]
+    );
+
+    // ✅ THIS WAS MISSING: clear pending balance
+    await client.query(
+      `
+      UPDATE wallets
+      SET
+        pending = pending - $1,
+        updated_at = NOW()
+      WHERE user_id = $2
+      `,
+      [withdrawal.amount, withdrawal.user_id]
     );
 
     await auditLog({
