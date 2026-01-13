@@ -9,6 +9,7 @@ function Dashboard() {
   const { user, loading } = useAuth();
 
   const [servicesCount, setServicesCount] = useState(0);
+  const [pendingActions, setPendingActions] = useState(null);
   const [loadingServices, setLoadingServices] = useState(true);
 
   // 🔐 Still loading auth state
@@ -40,6 +41,16 @@ function Dashboard() {
       .catch(() => {})
       .finally(() => setLoadingServices(false));
   }, []);
+  /* ===============================
+   LOAD PENDING ACTIONS
+   (SAFE, READ-ONLY)
+=============================== */
+  useEffect(() => {
+    api
+      .get("/orders/pending-actions")
+      .then(res => setPendingActions(res.data))
+      .catch(() => {});
+  }, []);
 
   const roleLabel = user.role
     ? user.role.replace("_", " ")
@@ -50,6 +61,22 @@ function Dashboard() {
   return (
     <PageWrapper>
       <h1 className="text-2xl font-bold">Dashboard</h1>
+      {/* ===============================
+    PENDING ACTION NOTIFICATIONS
+=============================== */}
+      {pendingActions?.seller_pending > 0 && (
+        <div className="mt-4 p-4 rounded bg-yellow-100 text-yellow-800">
+          🚚 You have {pendingActions.seller_pending} paid order(s) awaiting delivery.
+          Please mark them as delivered.
+        </div>
+      )}
+
+      {pendingActions?.buyer_pending > 0 && (
+        <div className="mt-4 p-4 rounded bg-blue-100 text-blue-800">
+          📦 You have {pendingActions.buyer_pending} delivered order(s) awaiting confirmation.
+        </div>
+      )}
+
 
       <p className="mt-4 text-gray-600">
         Logged in as <strong>{roleLabel}</strong>

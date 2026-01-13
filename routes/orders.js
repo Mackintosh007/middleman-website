@@ -217,6 +217,28 @@ router.patch(
         `UPDATE orders SET delivery_confirmed = true WHERE id = $1`,
         [id]
       );
+      // 🔔 Notify buyer to confirm delivery
+      const buyerRes = await pool.query(
+        `
+        SELECT email
+        FROM users
+        WHERE id = (
+          SELECT buyer_id FROM orders WHERE id = $1
+        )
+        `,
+        [id]
+      );
+
+      if (buyerRes.rows.length) {
+        await sendEmail({
+          to: buyerRes.rows[0].email,
+          subject: "Order Delivered – Please Confirm",
+          html: `
+            <p>The seller has marked your order as delivered.</p>
+            <p>Please confirm delivery on your dashboard to release payment.</p>
+          `
+        });
+      }
 
       res.json({ success: true });
     } catch (err) {
@@ -311,6 +333,7 @@ router.patch("/:id/confirm-delivery", auth, async (req, res) => {
   }
 });
 
+
 /**
  * ===============================
  * ADMIN: PENDING ESCROW ORDERS
@@ -336,6 +359,46 @@ router.get("/admin/pending", auth, async (req, res) => {
   } catch (err) {
     console.error("ADMIN PENDING ORDERS ERROR:", err);
     res.status(500).json({ error: "Failed to load orders" });
+  }
+});
+
+/**
+ * GET PENDING ACTION COUNTS (BUYER / SELLER)
+ */
+router.get("/pending-actions", auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const sellerRes = await pool.query(
+      `
+      SELECT COUNT(*)::int AS count
+      FROM orders
+      WHERE seller_id = $1
+        AND status = 'paid'
+        AND delivery_confirmed = false
+      `,
+      [userId]
+    );
+
+    const buyerRes = await pool.query(
+      `
+      SELECT COUNT(*)::int AS count
+      FROM orders
+      WHERE buyer_id = $1
+        AND delivery_confirmed = true
+        AND released_at IS NULL
+      `,
+      [userId]
+    );
+
+    res.json({
+      seller_pending: sellerRes.rows[0].count,
+      buyer_pending: buyerRes.rows[0].count
+    });
+
+  } catch (err) {
+    console.error("PENDING ACTION COUNT ERROR:", err);
+    res.status(500).json({ error: "Failed to load pending actions" });
   }
 });
 
