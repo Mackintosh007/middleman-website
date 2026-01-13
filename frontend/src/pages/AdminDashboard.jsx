@@ -3,9 +3,6 @@ import api from "../api/axios";
 import PageWrapper from "../components/PageWrapper";
 
 function AdminDashboard() {
-  /* ===============================
-     STATE
-  =============================== */
   const [stats, setStats] = useState(null);
   const [revenue, setRevenue] = useState(null);
 
@@ -34,7 +31,7 @@ function AdminDashboard() {
   }, []);
 
   /* ===============================
-     LOAD SERVICE REQUESTS ✅
+     LOAD SERVICE REQUESTS (NEW)
   =============================== */
   useEffect(() => {
     api
@@ -91,44 +88,48 @@ function AdminDashboard() {
       <h1 className="text-2xl font-bold mb-10">🛡 Admin Dashboard</h1>
 
       {/* ===============================
-          PLATFORM OVERVIEW
+          PLATFORM OVERVIEW (UNCHANGED)
       =============================== */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-12">
-          <StatCard label="👤 Unverified Users" value={stats.users} />
-          <StatCard label="🧾 Seller Requests" value={stats.seller_requests} />
-          <StatCard label="💸 Withdrawals" value={stats.withdrawals} />
-          <StatCard label="📦 Pending Orders" value={stats.orders} />
-          <StatCard label="🛠 Service Requests" value={stats.service_requests} />
+          <StatCard label="👤 Unverified Users" value={stats.users} link="/admin/users" />
+          <StatCard label="🧾 Seller Requests" value={stats.seller_requests} link="/admin/seller-requests" />
+          <StatCard label="💸 Withdrawals" value={stats.withdrawals} link="/admin/withdrawals" />
+          <StatCard label="📦 Pending Orders" value={stats.orders} link="/admin/orders" />
+          <StatCard label="🛠 Service Requests" value={stats.service_requests} link="/admin/services" />
         </div>
       )}
 
       {/* ===============================
-          FINANCIAL OVERVIEW
+          FINANCIAL OVERVIEW (UNCHANGED)
       =============================== */}
       {revenue && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-14">
           <StatCard
             label="👛 Seller Wallets"
             value={`₦${Number(revenue.wallets.total_wallet).toLocaleString()}`}
+            link="/admin/revenue"
           />
           <StatCard
             label="⏳ Pending Payouts"
             value={`₦${Number(revenue.wallets.total_pending).toLocaleString()}`}
+            link="/admin/withdrawals"
           />
           <StatCard
             label="🏦 Platform Commission"
             value={`₦${Number(revenue.commission.total_commission).toLocaleString()}`}
+            link="/admin/revenue"
           />
           <StatCard
             label="🔐 Escrow Volume"
             value={`₦${Number(revenue.escrow.total_volume).toLocaleString()}`}
+            link="/admin/orders"
           />
         </div>
       )}
 
       {/* ===============================
-          SERVICE REQUESTS ✅
+          SERVICE REQUESTS (NEW, SAFE)
       =============================== */}
       <section className="mb-14">
         <h2 className="text-xl font-semibold mb-4">🛠 Service Requests</h2>
@@ -140,22 +141,14 @@ function AdminDashboard() {
         ) : (
           serviceRequests.map(r => (
             <div key={r.id} className="border p-4 mb-4 rounded bg-white">
-              <p className="font-semibold">
-                {r.first_name} {r.last_name}
-              </p>
+              <p className="font-semibold">{r.first_name} {r.last_name}</p>
               <p className="text-sm">{r.email}</p>
 
               <div className="mt-3 flex gap-3">
-                <button
-                  onClick={() => approveService(r.id)}
-                  className="bg-green-600 text-white px-3 py-1 rounded"
-                >
+                <button onClick={() => approveService(r.id)} className="bg-green-600 text-white px-3 py-1 rounded">
                   Approve
                 </button>
-                <button
-                  onClick={() => rejectService(r.id)}
-                  className="bg-red-600 text-white px-3 py-1 rounded"
-                >
+                <button onClick={() => rejectService(r.id)} className="bg-red-600 text-white px-3 py-1 rounded">
                   Reject
                 </button>
               </div>
@@ -165,7 +158,7 @@ function AdminDashboard() {
       </section>
 
       {/* ===============================
-          SELLER REQUESTS
+          SELLER REQUESTS (UNCHANGED)
       =============================== */}
       <section className="mb-14">
         <h2 className="text-xl font-semibold mb-4">Seller Requests</h2>
@@ -175,22 +168,14 @@ function AdminDashboard() {
         ) : (
           sellerRequests.map(r => (
             <div key={r.id} className="border p-4 mb-4 rounded bg-white">
-              <p className="font-semibold">
-                {r.first_name} {r.last_name}
-              </p>
+              <p className="font-semibold">{r.first_name} {r.last_name}</p>
               <p className="text-sm">{r.email}</p>
 
               <div className="mt-3 flex gap-3">
-                <button
-                  onClick={() => approveSeller(r.id)}
-                  className="bg-green-600 text-white px-3 py-1 rounded"
-                >
+                <button onClick={() => approveSeller(r.id)} className="bg-green-600 text-white px-3 py-1 rounded">
                   Approve
                 </button>
-                <button
-                  onClick={() => rejectSeller(r.id)}
-                  className="bg-red-600 text-white px-3 py-1 rounded"
-                >
+                <button onClick={() => rejectSeller(r.id)} className="bg-red-600 text-white px-3 py-1 rounded">
                   Reject
                 </button>
               </div>
@@ -200,7 +185,7 @@ function AdminDashboard() {
       </section>
 
       {/* ===============================
-          WITHDRAWALS
+          WITHDRAWALS (UNCHANGED)
       =============================== */}
       <section className="mb-14">
         <h2 className="text-xl font-semibold mb-4">Withdrawal Requests</h2>
@@ -218,16 +203,10 @@ function AdminDashboard() {
               </p>
 
               <div className="mt-3 flex gap-3">
-                <button
-                  onClick={() => approveWithdrawal(w.id)}
-                  className="bg-green-600 text-white px-3 py-1 rounded"
-                >
+                <button onClick={() => approveWithdrawal(w.id)} className="bg-green-600 text-white px-3 py-1 rounded">
                   Approve
                 </button>
-                <button
-                  onClick={() => rejectWithdrawal(w.id)}
-                  className="bg-red-600 text-white px-3 py-1 rounded"
-                >
+                <button onClick={() => rejectWithdrawal(w.id)} className="bg-red-600 text-white px-3 py-1 rounded">
                   Reject
                 </button>
               </div>
@@ -240,14 +219,17 @@ function AdminDashboard() {
 }
 
 /* ===============================
-   STAT CARD
+   STAT CARD (RESTORED CLICKABLE)
 =============================== */
-function StatCard({ label, value }) {
+function StatCard({ label, value, link }) {
   return (
-    <div className="border rounded p-6 bg-white shadow-sm">
+    <a
+      href={link}
+      className="border rounded p-6 bg-white hover:shadow transition block"
+    >
       <p className="text-sm text-gray-500">{label}</p>
       <p className="text-3xl font-bold mt-2">{value}</p>
-    </div>
+    </a>
   );
 }
 
