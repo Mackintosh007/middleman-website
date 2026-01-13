@@ -4,6 +4,8 @@ const pool = require("../db");
 const auth = require("../middleware/auth");
 const upload = require("../middleware/upload");
 const cloudinary = require("../utils/cloudinary");
+const roles = require("../middleware/roles"); 
+
 
 /**
  * REQUEST TO BECOME SERVICE PROVIDER
