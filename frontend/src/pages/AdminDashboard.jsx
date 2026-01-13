@@ -6,6 +6,8 @@ function AdminDashboard() {
   const [sellerRequests, setSellerRequests] = useState([]);
   const [withdrawals, setWithdrawals] = useState([]);
   const [loadingWithdrawals, setLoadingWithdrawals] = useState(true);
+  const [serviceRequests, setServiceRequests] = useState([]);
+
 
   // Admin stats
   const [stats, setStats] = useState(null);
@@ -45,6 +47,13 @@ function AdminDashboard() {
     api.get("/withdrawals/admin/pending")
       .then(res => setWithdrawals(res.data))
       .finally(() => setLoadingWithdrawals(false));
+  }, []);
+
+  useEffect(() => {
+    api
+      .get("/service-requests/admin/pending")
+      .then(res => setServiceRequests(res.data))
+      .catch(() => {});
   }, []);
 
   /* ===============================
@@ -164,6 +173,27 @@ function AdminDashboard() {
           ))
         )}
       </section>
+      <section className="mb-14">
+  <h2 className="text-xl font-semibold mb-4">
+    Service Requests
+  </h2>
+
+  {serviceRequests.length === 0 ? (
+    <p>No pending service requests.</p>
+  ) : (
+    serviceRequests.map(r => (
+      <div key={r.id} className="border p-4 mb-4 rounded bg-white">
+        <p className="font-semibold">
+          {r.first_name} {r.last_name}
+        </p>
+        <p className="text-sm">{r.email}</p>
+        <p className="text-xs text-gray-500">
+          Requested on {new Date(r.created_at).toLocaleDateString()}
+        </p>
+      </div>
+    ))
+  )}
+</section>
 
       {/* ===============================
           WITHDRAWALS
