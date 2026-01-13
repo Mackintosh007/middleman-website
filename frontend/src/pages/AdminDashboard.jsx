@@ -7,19 +7,23 @@ function AdminDashboard() {
   const [escrowOrders, setEscrowOrders] = useState([]);
   const [listings, setListings] = useState([]);
 
-  // ✅ WITHDRAWALS
+  // Withdrawals
   const [withdrawals, setWithdrawals] = useState([]);
   const [loadingWithdrawals, setLoadingWithdrawals] = useState(true);
 
   const [loadingListings, setLoadingListings] = useState(true);
 
-  // ✅ ADMIN STATS
+  // Admin stats
   const [stats, setStats] = useState(null);
   const [revenue, setRevenue] = useState(null);
 
+  /* ===============================
+     LOAD REVENUE (WALLETS / COMMISSION)
+  =============================== */
   useEffect(() => {
-    api.get("/admin/revenue")
-      .then(res => setRevenue(res.data))
+    api
+      .get("/admin/revenue")
+      .then((res) => setRevenue(res.data))
       .catch(() => {});
   }, []);
 
@@ -29,7 +33,7 @@ function AdminDashboard() {
   useEffect(() => {
     api
       .get("/admin/stats")
-      .then(res => setStats(res.data))
+      .then((res) => setStats(res.data))
       .catch(() => {});
   }, []);
 
@@ -39,7 +43,7 @@ function AdminDashboard() {
   useEffect(() => {
     api
       .get("/seller-requests")
-      .then(res => setSellerRequests(res.data))
+      .then((res) => setSellerRequests(res.data))
       .catch(() => {});
   }, []);
 
@@ -49,7 +53,7 @@ function AdminDashboard() {
   useEffect(() => {
     api
       .get("/orders/admin/pending")
-      .then(res => setEscrowOrders(res.data))
+      .then((res) => setEscrowOrders(res.data))
       .catch(() => {});
   }, []);
 
@@ -59,7 +63,7 @@ function AdminDashboard() {
   useEffect(() => {
     api
       .get("/properties")
-      .then(res => setListings(res.data.results))
+      .then((res) => setListings(res.data.results))
       .finally(() => setLoadingListings(false));
   }, []);
 
@@ -69,219 +73,98 @@ function AdminDashboard() {
   useEffect(() => {
     api
       .get("/withdrawals/admin/pending")
-      .then(res => setWithdrawals(res.data))
+      .then((res) => setWithdrawals(res.data))
       .finally(() => setLoadingWithdrawals(false));
   }, []);
 
-  {stats && (
-  <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-12">
-    <StatCard label="Unverified Users" value={stats.users} link="/admin/users" />
-    <StatCard label="Seller Requests" value={stats.seller_requests} link="/admin/seller-requests" />
-    <StatCard label="Withdrawals" value={stats.withdrawals} link="/admin/withdrawals" />
-    <StatCard label="Pending Orders" value={stats.orders} link="/admin/orders" />
-    <StatCard label="Service Requests" value={stats.service_requests} link="/admin/services" />
-  </div>
-)}
-   {revenue && (
-  <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-    <StatCard
-      label="Seller Wallets"
-      value={`₦${Number(revenue.wallets.total_wallet).toLocaleString()}`}
-      link="/admin/revenue"
-    />
-    <StatCard
-      label="Pending Payouts"
-      value={`₦${Number(revenue.wallets.total_pending).toLocaleString()}`}
-      link="/admin/withdrawals"
-    />
-    <StatCard
-      label="Platform Commission"
-      value={`₦${Number(revenue.commission.total_commission).toLocaleString()}`}
-      link="/admin/revenue"
-    />
-    <StatCard
-      label="Escrow Volume"
-      value={`₦${Number(revenue.escrow.total_volume).toLocaleString()}`}
-      link="/admin/orders"
-    />
-  </div>
-)}
-
-
   /* ===============================
-     SELLER REQUEST ACTIONS
+     ACTIONS
   =============================== */
-  const approveRequest = async id => {
+  const approveRequest = async (id) => {
     await api.patch(`/seller-requests/${id}/approve`);
-    setSellerRequests(r => r.filter(x => x.id !== id));
+    setSellerRequests((r) => r.filter((x) => x.id !== id));
   };
 
-  const rejectRequest = async id => {
+  const rejectRequest = async (id) => {
     await api.patch(`/seller-requests/${id}/reject`);
-    setSellerRequests(r => r.filter(x => x.id !== id));
+    setSellerRequests((r) => r.filter((x) => x.id !== id));
   };
 
-  /* ===============================
-     ESCROW ACTIONS
-  =============================== */
-  const updateEscrow = async id => {
-    await api.patch(`/orders/${id}/complete`);
-    setEscrowOrders(o => o.filter(x => x.id !== id));
-  };
-
-  /* ===============================
-     LISTING STATUS
-  =============================== */
-  const toggleListingStatus = async (id, status) => {
-    const newStatus = status === "active" ? "inactive" : "active";
-
-    await api.patch(`/properties/${id}/status`, {
-      status: newStatus
-    });
-
-    setListings(listings =>
-      listings.map(l =>
-        l.id === id ? { ...l, status: newStatus } : l
-      )
-    );
-  };
-
-  /* ===============================
-     WITHDRAWAL ACTIONS
-  =============================== */
-  const approveWithdrawal = async id => {
+  const approveWithdrawal = async (id) => {
     await api.patch(`/withdrawals/${id}/approve`);
-    setWithdrawals(w => w.filter(x => x.id !== id));
+    setWithdrawals((w) => w.filter((x) => x.id !== id));
   };
 
-  const rejectWithdrawal = async id => {
+  const rejectWithdrawal = async (id) => {
     await api.patch(`/withdrawals/${id}/reject`);
-    setWithdrawals(w => w.filter(x => x.id !== id));
+    setWithdrawals((w) => w.filter((x) => x.id !== id));
   };
 
   return (
     <PageWrapper>
-      <h1 className="text-2xl font-bold mb-10">
-        Admin Dashboard
-      </h1>
+      <h1 className="text-2xl font-bold mb-10">Admin Dashboard</h1>
 
       {/* ===============================
           ADMIN OVERVIEW
       =============================== */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-          <StatCard
-            label="Unverified Users"
-            value={stats.users}
-            link="/admin/users"
-          />
-          <StatCard
-            label="Seller Requests"
-            value={stats.seller_requests}
-            link="/admin/seller-requests"
-          />
-          <StatCard
-            label="Withdrawals"
-            value={stats.withdrawals}
-            link="/admin/withdrawals"
-          />
-          <StatCard
-            label="Pending Orders"
-            value={stats.orders}
-            link="/admin/orders"
-          />
-          <StatCard
-            label="Service Requests"
-            value={stats.service_requests}
-            link="/admin/services"
-          />
-
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-12">
+          <StatCard label="Unverified Users" value={stats.users} link="/admin/users" />
+          <StatCard label="Seller Requests" value={stats.seller_requests} link="/admin/seller-requests" />
+          <StatCard label="Withdrawals" value={stats.withdrawals} link="/admin/withdrawals" />
+          <StatCard label="Pending Orders" value={stats.orders} link="/admin/orders" />
+          <StatCard label="Service Requests" value={stats.service_requests} link="/admin/services" />
         </div>
       )}
 
       {/* ===============================
-          QUICK ACTIONS (UPDATED)
+          FINANCIAL OVERVIEW (FIXED)
       =============================== */}
-      <div className="mb-10 flex gap-4 flex-wrap">
-        <a
-          href="/admin/users"
-          className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-900"
-        >
-          👤 Manage Users
-        </a>
-
-        <a
-          href="/admin/seller-requests"
-          className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
-        >
-          🧾 Seller Requests
-        </a>
-
-        {/* ✅ NEW: SERVICE REQUESTS LINK */}
-        <a
-          href="/admin/services"
-          className="px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700"
-        >
-          🛠 Service Requests
-        </a>
-
-        <a
-          href="/admin/withdrawals"
-          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-        >
-          💸 Withdrawal Requests
-        </a>
-
-        <a
-          href="/admin/orders"
-          className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-        >
-          📦 Escrow Orders
-        </a>
-
-        <a
-          href="/admin/revenue"
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          📊 Platform Revenue
-        </a>
-      </div>
+      {revenue && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+          <StatCard
+            label="Seller Wallets"
+            value={`₦${Number(revenue.wallets.total_wallet).toLocaleString()}`}
+            link="/admin/revenue"
+          />
+          <StatCard
+            label="Pending Payouts"
+            value={`₦${Number(revenue.wallets.total_pending).toLocaleString()}`}
+            link="/admin/withdrawals"
+          />
+          <StatCard
+            label="Platform Commission"
+            value={`₦${Number(revenue.commission.total_commission).toLocaleString()}`}
+            link="/admin/revenue"
+          />
+          <StatCard
+            label="Escrow Volume"
+            value={`₦${Number(revenue.escrow.total_volume).toLocaleString()}`}
+            link="/admin/orders"
+          />
+        </div>
+      )}
 
       {/* ===============================
           SELLER REQUESTS
       =============================== */}
       <section className="mb-14">
-        <h2 className="text-xl font-semibold mb-4">
-          Seller Requests
-        </h2>
+        <h2 className="text-xl font-semibold mb-4">Seller Requests</h2>
 
         {sellerRequests.length === 0 ? (
           <p>No pending seller requests.</p>
         ) : (
-          sellerRequests.map(r => (
-            <div
-              key={r.id}
-              className="border p-4 mb-4 rounded bg-white"
-            >
-              <p className="font-semibold">
-                {r.first_name} {r.last_name}
-              </p>
+          sellerRequests.map((r) => (
+            <div key={r.id} className="border p-4 mb-4 rounded bg-white">
+              <p className="font-semibold">{r.first_name} {r.last_name}</p>
               <p className="text-sm">{r.email}</p>
-              <p className="text-sm">
-                Requested role: {r.requested_role}
-              </p>
+              <p className="text-sm">Requested role: {r.requested_role}</p>
 
               <div className="mt-3 flex gap-3">
-                <button
-                  onClick={() => approveRequest(r.id)}
-                  className="bg-green-600 text-white px-3 py-1 rounded"
-                >
+                <button onClick={() => approveRequest(r.id)} className="bg-green-600 text-white px-3 py-1 rounded">
                   Approve
                 </button>
-                <button
-                  onClick={() => rejectRequest(r.id)}
-                  className="bg-red-600 text-white px-3 py-1 rounded"
-                >
+                <button onClick={() => rejectRequest(r.id)} className="bg-red-600 text-white px-3 py-1 rounded">
                   Reject
                 </button>
               </div>
@@ -291,39 +174,26 @@ function AdminDashboard() {
       </section>
 
       {/* ===============================
-          WITHDRAWAL REQUESTS
+          WITHDRAWALS
       =============================== */}
       <section className="mb-14">
-        <h2 className="text-xl font-semibold mb-4">
-          Withdrawal Requests
-        </h2>
+        <h2 className="text-xl font-semibold mb-4">Withdrawal Requests</h2>
 
         {loadingWithdrawals ? (
           <p>Loading withdrawals...</p>
         ) : withdrawals.length === 0 ? (
           <p>No pending withdrawal requests.</p>
         ) : (
-          withdrawals.map(w => (
-            <div
-              key={w.id}
-              className="border p-4 mb-4 rounded bg-white"
-            >
+          withdrawals.map((w) => (
+            <div key={w.id} className="border p-4 mb-4 rounded bg-white">
               <p className="font-semibold">{w.email}</p>
-              <p className="text-sm">
-                Amount: ₦{Number(w.amount).toLocaleString()}
-              </p>
+              <p className="text-sm">Amount: ₦{Number(w.amount).toLocaleString()}</p>
 
               <div className="mt-3 flex gap-3">
-                <button
-                  onClick={() => approveWithdrawal(w.id)}
-                  className="bg-green-600 text-white px-3 py-1 rounded"
-                >
+                <button onClick={() => approveWithdrawal(w.id)} className="bg-green-600 text-white px-3 py-1 rounded">
                   Approve
                 </button>
-                <button
-                  onClick={() => rejectWithdrawal(w.id)}
-                  className="bg-red-600 text-white px-3 py-1 rounded"
-                >
+                <button onClick={() => rejectWithdrawal(w.id)} className="bg-red-600 text-white px-3 py-1 rounded">
                   Reject
                 </button>
               </div>
@@ -340,10 +210,7 @@ function AdminDashboard() {
 =============================== */
 function StatCard({ label, value, link }) {
   return (
-    <a
-      href={link}
-      className="border rounded p-6 bg-white hover:shadow transition"
-    >
+    <a href={link} className="border rounded p-6 bg-white hover:shadow transition">
       <p className="text-sm text-gray-500">{label}</p>
       <p className="text-3xl font-bold mt-2">{value}</p>
     </a>
