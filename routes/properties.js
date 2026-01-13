@@ -199,6 +199,90 @@ router.get("/:id/status", async (req, res) => {
 });
 
 /**
+ * UPDATE PROPERTY DETAILS (OWNER / ADMIN ONLY)
+ * PATCH /api/properties/:id
+ */
+router.patch(
+  "/:id",
+  auth,
+  roles("admin", "agent", "individual_seller"),
+  async (req, res) => {
+    try {
+      const propertyId = req.params.id;
+      const {
+        title,
+        description,
+        price,
+        location,
+        condition
+      } = req.body;
+
+      // 1️⃣ Load property
+      const propRes = await pool.query(
+        `
+        SELECT id, owner_id, status
+        FROM properties
+        WHERE id = $1
+        `,
+        [propertyId]
+      );
+
+      if (!propRes.rows.length) {
+        return res.status(404).json({ error: "Property not found" });
+      }
+
+      const property = propRes.rows[0];
+
+      // 2️⃣ Ownership check
+      if (
+        req.user.role !== "admin" &&
+        Number(property.owner_id) !== Number(req.user.id)
+      ) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+
+      // 3️⃣ Escrow safety lock
+      if (["pending", "sold"].includes(property.status)) {
+        return res.status(403).json({
+          error: "This listing cannot be edited due to an escrow transaction"
+        });
+      }
+
+      // 4️⃣ Update allowed fields only
+      const result = await pool.query(
+        `
+        UPDATE properties
+        SET
+          title = COALESCE($1, title),
+          description = COALESCE($2, description),
+          price = COALESCE($3, price),
+          location = COALESCE($4, location),
+          condition = COALESCE($5, condition),
+          updated_at = NOW()
+        WHERE id = $6
+        RETURNING *
+        `,
+        [
+          title || null,
+          description || null,
+          price || null,
+          location || null,
+          condition || null,
+          propertyId
+        ]
+      );
+
+      res.json(result.rows[0]);
+
+    } catch (err) {
+      console.error("UPDATE PROPERTY ERROR:", err);
+      res.status(500).json({ error: "Failed to update property" });
+    }
+  }
+);
+
+
+/**
  * UPDATE PROPERTY STATUS (ESCROW-SAFE)
  */
 router.patch(
