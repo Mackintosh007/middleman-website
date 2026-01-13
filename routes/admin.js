@@ -6,6 +6,58 @@ const roles = require("../middleware/roles");
 
 /**
  * ===============================
+ * ADMIN — GENERAL STATS
+ * ===============================
+ */
+router.get(
+  "/stats",
+  auth,
+  roles("admin"),
+  async (req, res) => {
+    try {
+      const users = await pool.query(`
+        SELECT COUNT(*) FROM users
+        WHERE email_verified = false
+      `);
+
+      const sellerRequests = await pool.query(`
+        SELECT COUNT(*) FROM seller_requests
+        WHERE status = 'pending'
+      `);
+
+      const withdrawals = await pool.query(`
+        SELECT COUNT(*) FROM withdrawals
+        WHERE status = 'pending'
+      `);
+
+      const orders = await pool.query(`
+        SELECT COUNT(*) FROM orders
+        WHERE status IN ('paid', 'funds_held')
+      `);
+
+      const serviceRequests = await pool.query(`
+        SELECT COUNT(*) FROM service_requests
+        WHERE status = 'pending'
+      `);
+
+      res.json({
+        users: Number(users.rows[0].count),
+        seller_requests: Number(sellerRequests.rows[0].count),
+        withdrawals: Number(withdrawals.rows[0].count),
+        orders: Number(orders.rows[0].count),
+        service_requests: Number(serviceRequests.rows[0].count),
+      });
+
+    } catch (err) {
+      console.error("ADMIN STATS ERROR:", err);
+      res.status(500).json({ error: "Failed to load admin stats" });
+    }
+  }
+);
+
+
+/**
+ * ===============================
  * ADMIN REVENUE DASHBOARD
  * ===============================
  */
@@ -37,16 +89,75 @@ router.get(
           ), 0) AS paid_commission
         FROM commissions
       `);
+            // 🔹 Sellers wallet totals
+      const walletStats = await pool.query(`
+        SELECT
+          COALESCE(SUM(balance), 0) AS total_wallet,
+          COALESCE(SUM(pending), 0) AS total_pending
+        FROM wallets
+      `);
+
+        res.json({
+          escrow: escrowStats.rows[0],
+          commission: commissionStats.rows[0],
+          wallets: walletStats.rows[0]
+        });
+
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+/**
+ * ===============================
+ * ADMIN STATS (ALIAS FOR DASHBOARD)
+ * ===============================
+ */
+router.get(
+  "/stats",
+  auth,
+  roles("admin"),
+  async (req, res) => {
+    try {
+      // Escrow revenue
+      const escrowStats = await pool.query(`
+        SELECT
+          COUNT(*) AS total_orders,
+          COALESCE(SUM(amount), 0) AS total_volume,
+          COALESCE(SUM(platform_fee), 0) AS platform_fees,
+          COALESCE(SUM(delivery_fee), 0) AS delivery_fees
+        FROM orders
+        WHERE status IN ('funds_held', 'completed')
+      `);
+
+      // Commission
+      const commissionStats = await pool.query(`
+        SELECT
+          COUNT(*) AS total_deals,
+          COALESCE(SUM(commission_amount), 0) AS total_commission
+        FROM commissions
+      `);
+
+      // Wallet totals
+      const walletStats = await pool.query(`
+        SELECT
+          COALESCE(SUM(balance), 0) AS total_wallet,
+          COALESCE(SUM(pending), 0) AS total_pending
+        FROM wallets
+      `);
 
       res.json({
         escrow: escrowStats.rows[0],
         commission: commissionStats.rows[0],
+        wallets: walletStats.rows[0]
       });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
   }
 );
+
 
 /**
  * ===============================

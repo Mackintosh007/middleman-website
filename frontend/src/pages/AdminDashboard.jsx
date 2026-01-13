@@ -15,6 +15,13 @@ function AdminDashboard() {
 
   // ✅ ADMIN STATS
   const [stats, setStats] = useState(null);
+  const [revenue, setRevenue] = useState(null);
+
+  useEffect(() => {
+    api.get("/admin/revenue")
+      .then(res => setRevenue(res.data))
+      .catch(() => {});
+  }, []);
 
   /* ===============================
      LOAD ADMIN STATS
@@ -65,6 +72,41 @@ function AdminDashboard() {
       .then(res => setWithdrawals(res.data))
       .finally(() => setLoadingWithdrawals(false));
   }, []);
+
+  {stats && (
+  <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-12">
+    <StatCard label="Unverified Users" value={stats.users} link="/admin/users" />
+    <StatCard label="Seller Requests" value={stats.seller_requests} link="/admin/seller-requests" />
+    <StatCard label="Withdrawals" value={stats.withdrawals} link="/admin/withdrawals" />
+    <StatCard label="Pending Orders" value={stats.orders} link="/admin/orders" />
+    <StatCard label="Service Requests" value={stats.service_requests} link="/admin/services" />
+  </div>
+)}
+   {revenue && (
+  <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+    <StatCard
+      label="Seller Wallets"
+      value={`₦${Number(revenue.wallets.total_wallet).toLocaleString()}`}
+      link="/admin/revenue"
+    />
+    <StatCard
+      label="Pending Payouts"
+      value={`₦${Number(revenue.wallets.total_pending).toLocaleString()}`}
+      link="/admin/withdrawals"
+    />
+    <StatCard
+      label="Platform Commission"
+      value={`₦${Number(revenue.commission.total_commission).toLocaleString()}`}
+      link="/admin/revenue"
+    />
+    <StatCard
+      label="Escrow Volume"
+      value={`₦${Number(revenue.escrow.total_volume).toLocaleString()}`}
+      link="/admin/orders"
+    />
+  </div>
+)}
+
 
   /* ===============================
      SELLER REQUEST ACTIONS
