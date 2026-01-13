@@ -101,6 +101,142 @@ router.get(
       const result = await pool.query(`
         SELECT
           sr.id,
+          sr.created_at,
+          u.id AS user_id,
+          u.first_name,
+          u.last_name,
+          u.email
+        FROM service_requests sr
+        JOIN users u ON u.id = sr.user_id
+        WHERE sr.status = 'pending'
+        ORDER BY sr.created_at DESC
+      `);
+
+      res.json(result.rows);
+    } catch (err) {
+      console.error("LOAD SERVICE REQUESTS ERROR:", err);
+      res.status(500).json({ error: "Failed to load service requests" });
+    }
+  }
+);
+
+/**
+ * ===============================
+ * ADMIN: APPROVE SERVICE REQUEST
+ * PATCH /api/service-requests/:id/approve
+ * ===============================
+ */
+router.patch(
+  "/:id/approve",
+  auth,
+  roles("admin"),
+  async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+      const requestId = req.params.id;
+
+      await client.query("BEGIN");
+
+      const reqRes = await client.query(
+        `
+        SELECT *
+        FROM service_requests
+        WHERE id = $1 AND status = 'pending'
+        FOR UPDATE
+        `,
+        [requestId]
+      );
+
+      if (!reqRes.rows.length) {
+        throw new Error("Request not found or already processed");
+      }
+
+      const request = reqRes.rows[0];
+
+      // ✅ Approve request
+      await client.query(
+        `
+        UPDATE service_requests
+        SET status = 'approved'
+        WHERE id = $1
+        `,
+        [requestId]
+      );
+
+      // ✅ Activate services
+      await client.query(
+        `
+        UPDATE services
+        SET status = 'active'
+        WHERE service_request_id = $1
+        `,
+        [requestId]
+      );
+
+      await client.query("COMMIT");
+
+      res.json({ success: true });
+    } catch (err) {
+      await client.query("ROLLBACK");
+      console.error("APPROVE SERVICE REQUEST ERROR:", err);
+      res.status(500).json({ error: err.message });
+    } finally {
+      client.release();
+    }
+  }
+);
+
+/**
+ * ===============================
+ * ADMIN: REJECT SERVICE REQUEST
+ * PATCH /api/service-requests/:id/reject
+ * ===============================
+ */
+router.patch(
+  "/:id/reject",
+  auth,
+  roles("admin"),
+  async (req, res) => {
+    try {
+      const result = await pool.query(
+        `
+        UPDATE service_requests
+        SET status = 'rejected'
+        WHERE id = $1 AND status = 'pending'
+        RETURNING id
+        `,
+        [req.params.id]
+      );
+
+      if (!result.rows.length) {
+        return res.status(400).json({ error: "Invalid request" });
+      }
+
+      res.json({ success: true });
+    } catch (err) {
+      console.error("REJECT SERVICE REQUEST ERROR:", err);
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+
+/**
+ * ===============================
+ * ADMIN: VIEW PENDING SERVICE REQUESTS
+ * GET /api/service-requests/admin/pending
+ * ===============================
+ */
+router.get(
+  "/admin/pending",
+  auth,
+  roles("admin"),
+  async (req, res) => {
+    try {
+      const result = await pool.query(`
+        SELECT
+          sr.id,
           sr.user_id,
           sr.status,
           sr.created_at,
