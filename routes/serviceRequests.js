@@ -221,6 +221,24 @@ router.patch(
   }
 );
 
+// routes/serviceRequests.js
+router.get(
+  "/admin/pending",
+  auth,
+  roles("admin"),
+  async (req, res) => {
+    const result = await pool.query(`
+      SELECT sr.*, u.email, u.first_name, u.last_name
+      FROM service_requests sr
+      JOIN users u ON u.id = sr.user_id
+      WHERE sr.status = 'pending'
+      ORDER BY sr.created_at DESC
+    `);
+
+    res.json(result.rows);
+  }
+);
+
 
 /**
  * ===============================
