@@ -126,10 +126,26 @@ router.get("/", async (req, res) => {
     const { limit = 50 } = req.query;
 
     const result = await pool.query(
-      `SELECT *
-       FROM properties
-       ORDER BY created_at DESC
-       LIMIT $1`,
+      `
+      SELECT *,
+        CASE
+          WHEN status = 'sold'
+           AND sold_date >= NOW() - INTERVAL '48 hours'
+          THEN true
+          ELSE false
+        END AS just_sold
+      FROM properties
+      WHERE
+        status = 'active'
+        OR (
+          status = 'sold'
+          AND sold_date >= NOW() - INTERVAL '48 hours'
+        )
+      ORDER BY
+        CASE WHEN status = 'sold' THEN 1 ELSE 0 END,
+        created_at DESC
+      LIMIT $1
+      `,
       [limit]
     );
 
@@ -138,6 +154,7 @@ router.get("/", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 /**
  * GET LOGGED-IN SELLER'S PROPERTIES

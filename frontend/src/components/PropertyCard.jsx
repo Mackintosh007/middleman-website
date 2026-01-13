@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import api from "../api/axios";
 
 function PropertyCard({ property }) {
+  const isJustSold = property.just_sold === true;
+
   /* ===============================
      SAFETY NORMALIZATION (UNCHANGED)
   =============================== */
@@ -99,10 +101,31 @@ function PropertyCard({ property }) {
     "https://via.placeholder.com/400x250?text=No+Image";
 
   return (
-    <Link
-      to={`/properties/${property.id}`}
-      className="card overflow-hidden hover:shadow-lg transition block bg-white rounded-lg border"
-    >
+  <Link
+    to={isJustSold ? "#" : `/properties/${property.id}`}
+    onClick={(e) => {
+      if (isJustSold) e.preventDefault();
+    }}
+    className={`relative card overflow-hidden transition block rounded-lg border bg-white ${
+      isJustSold
+        ? "opacity-70 cursor-not-allowed"
+        : "hover:shadow-lg"
+    }`}
+  >
+    {isJustSold && (
+  <div className="absolute top-3 right-3 z-20 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow">
+    Just Sold
+  </div>
+)}
+
+    {isJustSold && (
+  <div className="absolute inset-0 z-10 bg-black bg-opacity-40 flex items-center justify-center rounded-lg">
+    <span className="text-white text-lg font-semibold">
+      Sold
+    </span>
+  </div>
+)}
+
       {/* IMAGE */}
       <div className="w-full h-48 bg-gray-100 flex items-center justify-center">
         <img
