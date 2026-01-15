@@ -107,7 +107,7 @@ router.post(
       for (let i = 0; i < parsedServices.length; i++) {
         const svc = parsedServices[i];
 
-// 🔐 find first free slot (1 or 2) ignoring rejected services
+// 🔐 find first free slot (1 or 2) ignoring rejected requests
         const slotRes = await client.query(
           `
           SELECT MIN(s) AS next_slot
