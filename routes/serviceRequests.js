@@ -2,14 +2,15 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../db");
 const auth = require("../middleware/auth");
-const upload = require("../middleware/upload");
-const cloudinary = require("../utils/cloudinary");
-const roles = require("../middleware/roles"); 
-
+const roles = require("../middleware/roles");
 
 /**
- * REQUEST TO BECOME SERVICE PROVIDER
+ * ==================================================
+ * USER: REQUEST TO BECOME SERVICE PROVIDER
  * POST /api/service-requests
+ * - User can submit up to 2 services
+ * - Creates ONE service_request + MULTIPLE services
+ * ==================================================
  */
 router.post("/", auth, async (req, res) => {
   const client = await pool.connect();
@@ -18,44 +19,58 @@ router.post("/", auth, async (req, res) => {
     const { services } = req.body;
 
     if (!Array.isArray(services) || services.length === 0) {
-      return res.status(400).json({ error: "At least one service is required" });
+      return res
+        .status(400)
+        .json({ error: "At least one service is required" });
     }
 
     if (services.length > 2) {
-      return res.status(400).json({ error: "Maximum of 2 services allowed" });
+      return res
+        .status(400)
+        .json({ error: "Maximum of 2 services allowed" });
     }
 
     // Prevent duplicate pending request
     const existing = await client.query(
-      `SELECT id FROM service_requests
-       WHERE user_id = $1 AND status = 'pending'`,
+      `
+      SELECT id
+      FROM service_requests
+      WHERE user_id = $1 AND status = 'submitted'
+      `,
       [req.user.id]
     );
 
     if (existing.rows.length > 0) {
-      return res.status(400).json({ error: "Request already pending" });
+      return res
+        .status(400)
+        .json({ error: "You already have a pending request" });
     }
 
     await client.query("BEGIN");
 
-    // Create request
+    // Create service request (TRACKING ONLY)
     const requestRes = await client.query(
-      `INSERT INTO service_requests (user_id)
-       VALUES ($1)
-       RETURNING id`,
+      `
+      INSERT INTO service_requests (user_id, status)
+      VALUES ($1, 'submitted')
+      RETURNING id
+      `,
       [req.user.id]
     );
 
     const requestId = requestRes.rows[0].id;
     const serviceIds = [];
 
-    // Create services
+    // Create individual services (EACH will be approved/rejected)
     for (const s of services) {
       const serviceRes = await client.query(
-        `INSERT INTO services
-         (service_request_id, user_id, category, description, location, phone, whatsapp)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)
-         RETURNING id`,
+        `
+        INSERT INTO services
+          (service_request_id, user_id, category, description, location, phone, whatsapp, status)
+        VALUES
+          ($1, $2, $3, $4, $5, $6, $7, 'pending')
+        RETURNING id
+        `,
         [
           requestId,
           req.user.id,
@@ -72,7 +87,6 @@ router.post("/", auth, async (req, res) => {
 
     await client.query("COMMIT");
 
-    // 🔑 IMPORTANT: return service IDs
     res.json({
       success: true,
       serviceIds,
@@ -87,10 +101,10 @@ router.post("/", auth, async (req, res) => {
 });
 
 /**
- * ===============================
- * ADMIN: VIEW PENDING SERVICE REQUESTS
+ * ==================================================
+ * ADMIN: VIEW PENDING SERVICES (INDIVIDUAL)
  * GET /api/service-requests/admin/pending
- * ===============================
+ * ==================================================
  */
 router.get(
   "/admin/pending",
@@ -98,88 +112,112 @@ router.get(
   roles("admin"),
   async (req, res) => {
     try {
-      const result = await pool.query(`
+      const result = await pool.query(
+        `
         SELECT
-          sr.id,
-          sr.created_at,
+          s.id,
+          s.category,
+          s.description,
+          s.location,
+          s.phone,
+          s.whatsapp,
+          s.status,
+          s.created_at,
           u.id AS user_id,
+          u.email,
           u.first_name,
-          u.last_name,
-          u.email
-        FROM service_requests sr
-        JOIN users u ON u.id = sr.user_id
-        WHERE sr.status = 'pending'
-        ORDER BY sr.created_at DESC
-      `);
+          u.last_name
+        FROM services s
+        JOIN users u ON u.id = s.user_id
+        WHERE s.status = 'pending'
+        ORDER BY s.created_at DESC
+        `
+      );
 
       res.json(result.rows);
     } catch (err) {
-      console.error("LOAD SERVICE REQUESTS ERROR:", err);
-      res.status(500).json({ error: "Failed to load service requests" });
+      console.error("LOAD PENDING SERVICES ERROR:", err);
+      res
+        .status(500)
+        .json({ error: "Failed to load pending services" });
     }
   }
 );
 
 /**
- * ===============================
- * ADMIN: APPROVE SERVICE REQUEST
- * PATCH /api/service-requests/:id/approve
- * ===============================
+ * ==================================================
+ * ADMIN: APPROVE SINGLE SERVICE
+ * PATCH /api/service-requests/services/:id/approve
+ * ==================================================
  */
 router.patch(
-  "/:id/approve",
+  "/services/:id/approve",
   auth,
   roles("admin"),
   async (req, res) => {
     const client = await pool.connect();
 
     try {
-      const requestId = req.params.id;
+      const serviceId = req.params.id;
 
       await client.query("BEGIN");
 
-      const reqRes = await client.query(
+      const serviceRes = await client.query(
         `
-        SELECT *
-        FROM service_requests
+        SELECT id, service_request_id
+        FROM services
         WHERE id = $1 AND status = 'pending'
         FOR UPDATE
         `,
-        [requestId]
+        [serviceId]
       );
 
-      if (!reqRes.rows.length) {
-        throw new Error("Request not found or already processed");
+      if (!serviceRes.rows.length) {
+        return res
+          .status(400)
+          .json({ error: "Service not found or already processed" });
       }
 
-      const request = reqRes.rows[0];
+      const { service_request_id } = serviceRes.rows[0];
 
-      // ✅ Approve request
-      await client.query(
-        `
-        UPDATE service_requests
-        SET status = 'approved'
-        WHERE id = $1
-        `,
-        [requestId]
-      );
-
-      // ✅ Activate services
       await client.query(
         `
         UPDATE services
-        SET status = 'active'
-        WHERE service_request_id = $1
+        SET status = 'approved'
+        WHERE id = $1
         `,
-        [requestId]
+        [serviceId]
       );
+
+      // If no pending services remain, mark request completed
+      const pendingCheck = await client.query(
+        `
+        SELECT 1
+        FROM services
+        WHERE service_request_id = $1
+          AND status = 'pending'
+        LIMIT 1
+        `,
+        [service_request_id]
+      );
+
+      if (pendingCheck.rows.length === 0) {
+        await client.query(
+          `
+          UPDATE service_requests
+          SET status = 'completed'
+          WHERE id = $1
+          `,
+          [service_request_id]
+        );
+      }
 
       await client.query("COMMIT");
 
       res.json({ success: true });
     } catch (err) {
       await client.query("ROLLBACK");
-      console.error("APPROVE SERVICE REQUEST ERROR:", err);
+      console.error("APPROVE SERVICE ERROR:", err);
       res.status(500).json({ error: err.message });
     } finally {
       client.release();
@@ -188,92 +226,84 @@ router.patch(
 );
 
 /**
- * ===============================
- * ADMIN: REJECT SERVICE REQUEST
- * PATCH /api/service-requests/:id/reject
- * ===============================
+ * ==================================================
+ * ADMIN: REJECT SINGLE SERVICE
+ * PATCH /api/service-requests/services/:id/reject
+ * ==================================================
  */
 router.patch(
-  "/:id/reject",
+  "/services/:id/reject",
   auth,
   roles("admin"),
   async (req, res) => {
+    const client = await pool.connect();
+
     try {
-      const result = await pool.query(
+      const serviceId = req.params.id;
+
+      await client.query("BEGIN");
+
+      const serviceRes = await client.query(
         `
-        UPDATE service_requests
-        SET status = 'rejected'
+        SELECT id, service_request_id
+        FROM services
         WHERE id = $1 AND status = 'pending'
-        RETURNING id
+        FOR UPDATE
         `,
-        [req.params.id]
+        [serviceId]
       );
 
-      if (!result.rows.length) {
-        return res.status(400).json({ error: "Invalid request" });
+      if (!serviceRes.rows.length) {
+        return res
+          .status(400)
+          .json({ error: "Service not found or already processed" });
       }
+
+      const { service_request_id } = serviceRes.rows[0];
+
+      await client.query(
+        `
+        UPDATE services
+        SET status = 'rejected'
+        WHERE id = $1
+        `,
+        [serviceId]
+      );
+
+      // If no pending services remain, mark request completed
+      const pendingCheck = await client.query(
+        `
+        SELECT 1
+        FROM services
+        WHERE service_request_id = $1
+          AND status = 'pending'
+        LIMIT 1
+        `,
+        [service_request_id]
+      );
+
+      if (pendingCheck.rows.length === 0) {
+        await client.query(
+          `
+          UPDATE service_requests
+          SET status = 'completed'
+          WHERE id = $1
+          `,
+          [service_request_id]
+        );
+      }
+
+      await client.query("COMMIT");
 
       res.json({ success: true });
     } catch (err) {
-      console.error("REJECT SERVICE REQUEST ERROR:", err);
+      await client.query("ROLLBACK");
+      console.error("REJECT SERVICE ERROR:", err);
       res.status(500).json({ error: err.message });
+    } finally {
+      client.release();
     }
   }
 );
-
-// routes/serviceRequests.js
-router.get(
-  "/admin/pending",
-  auth,
-  roles("admin"),
-  async (req, res) => {
-    const result = await pool.query(`
-      SELECT sr.*, u.email, u.first_name, u.last_name
-      FROM service_requests sr
-      JOIN users u ON u.id = sr.user_id
-      WHERE sr.status = 'pending'
-      ORDER BY sr.created_at DESC
-    `);
-
-    res.json(result.rows);
-  }
-);
-
-
-/**
- * ===============================
- * ADMIN: VIEW PENDING SERVICE REQUESTS
- * GET /api/service-requests/admin/pending
- * ===============================
- */
-router.get(
-  "/admin/pending",
-  auth,
-  roles("admin"),
-  async (req, res) => {
-    try {
-      const result = await pool.query(`
-        SELECT
-          sr.id,
-          sr.user_id,
-          sr.status,
-          sr.created_at,
-          u.email,
-          u.first_name,
-          u.last_name
-        FROM service_requests sr
-        JOIN users u ON u.id = sr.user_id
-        WHERE sr.status = 'pending'
-        ORDER BY sr.created_at DESC
-      `);
-
-      res.json(result.rows);
-    } catch (err) {
-      console.error("LOAD SERVICE REQUESTS ERROR:", err);
-      res.status(500).json({ error: "Failed to load service requests" });
-    }
-  }
-);
-
 
 module.exports = router;
