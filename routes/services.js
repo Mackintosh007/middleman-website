@@ -416,7 +416,7 @@ router.patch(
       const result = await pool.query(
         `
         UPDATE services
-        SET status = 'inactive'
+        SET status = 'rejected'
         WHERE id = $1 AND status = 'pending'
         RETURNING *
         `,
@@ -437,5 +437,32 @@ router.patch(
     }
   }
 );
+
+/* ======================================================
+   🔐 USER: SERVICE SLOT USAGE
+   GET /api/services/usage
+====================================================== */
+router.get("/usage", auth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `
+      SELECT COUNT(*)::int AS used
+      FROM services
+      WHERE user_id = $1
+        AND status IN ('pending', 'active')
+      `,
+      [req.user.id]
+    );
+
+    res.json({
+      used: result.rows[0].used,
+      max: 2
+    });
+  } catch (err) {
+    console.error("SERVICE USAGE ERROR:", err);
+    res.status(500).json({ error: "Failed to load service usage" });
+  }
+});
+
 
 module.exports = router;
