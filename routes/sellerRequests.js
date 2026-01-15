@@ -4,6 +4,8 @@ const pool = require("../db");
 const auth = require("../middleware/auth");
 const roles = require("../middleware/roles");
 const auditLog = require("../utils/auditLog");
+const sendEmail = require("../utils/sendEmail");
+
 
 /**
  * USER: Request to become seller or agent
@@ -114,6 +116,51 @@ router.patch(
       }
 
       await client.query("COMMIT");
+      
+            /* ===============================
+         📧 APPROVAL EMAIL (SELLER / AGENT)
+      =============================== */
+
+      const userRes = await pool.query(
+        `
+        SELECT email, first_name
+        FROM users
+        WHERE id = $1
+        `,
+        [request.user_id]
+      );
+
+      if (userRes.rows.length) {
+        const { email, first_name } = userRes.rows[0];
+
+        const roleLabel =
+          request.requested_role === "agent" ? "Agent" : "Seller";
+
+        const dashboardUrl = `${process.env.FRONTEND_URL}/dashboard`;
+
+        await sendEmail({
+          to: email,
+          subject: `Your ${roleLabel} request has been approved 🎉`,
+          html: `
+            <h3>Congratulations, ${first_name}!</h3>
+
+            <p>Your request to become a <strong>${roleLabel}</strong> on Middleman has been approved.</p>
+
+            <p>You can now start listing items and receiving orders securely.</p>
+
+            <a href="${dashboardUrl}"
+               style="display:inline-block;padding:12px 18px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none;">
+               Go to your dashboard
+            </a>
+
+            <p style="margin-top:20px;">
+              Welcome aboard,<br/>
+              <strong>Middleman Team</strong>
+            </p>
+          `
+        });
+      }
+
 
       // ✅ AUDIT LOG (AFTER COMMIT)
       await auditLog({

@@ -3,6 +3,8 @@ const router = express.Router();
 const pool = require("../db");
 const auth = require("../middleware/auth");
 const roles = require("../middleware/roles");
+const sendEmail = require("../utils/sendEmail");
+
 
 /**
  * ==================================================
@@ -201,7 +203,7 @@ router.patch(
         [service_request_id]
       );
 
-      if (pendingCheck.rows.length === 0) {
+            if (pendingCheck.rows.length === 0) {
         await client.query(
           `
           UPDATE service_requests
@@ -210,7 +212,48 @@ router.patch(
           `,
           [service_request_id]
         );
+
+        /* ===============================
+           📧 SERVICE PROVIDER APPROVAL EMAIL
+        =============================== */
+        const userRes = await client.query(
+          `
+          SELECT u.email, u.first_name
+          FROM users u
+          JOIN service_requests sr ON sr.user_id = u.id
+          WHERE sr.id = $1
+          `,
+          [service_request_id]
+        );
+
+        if (userRes.rows.length) {
+          const { email, first_name } = userRes.rows[0];
+          const dashboardUrl = `${process.env.FRONTEND_URL}/dashboard`;
+
+          await sendEmail({
+            to: email,
+            subject: "Your Service Provider request has been approved 🎉, you can now expect to receive client requests directly in your whatsapp",
+            html: `
+              <h3>Welcome, ${first_name}!</h3>
+
+              <p>Your service provider request on <strong>Middleman</strong> has been fully approved.</p>
+
+              <p>You can now:</p>
+              <ul>
+                <li>Publish your services</li>
+                <li>Receive customer requests</li>
+                <li>Get paid securely via escrow</li>
+              </ul>
+
+              <a href="${dashboardUrl}"
+                 style="display:inline-block;padding:12px 18px;background:#16a34a;color:#fff;border-radius:6px;text-decoration:none;">
+                 Start managing your services
+              </a>
+            `
+          });
+        }
       }
+
 
       await client.query("COMMIT");
 
