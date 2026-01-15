@@ -19,6 +19,13 @@ function ServiceDashboard() {
     whatsapp: "",
   });
 
+  // ✅ count only active + pending services as used slots
+  const usedSlots = services.filter(
+    (s) => s.status === "pending" || s.status === "active"
+  ).length;
+
+  const maxSlots = 2;
+
   /* ===============================
      LOAD SERVICES
   =============================== */
@@ -160,6 +167,13 @@ function ServiceDashboard() {
       setActionLoading(null);
     }
   };
+   /* ===============================
+   REAPPLY SERVICE
+=============================== */
+const reapplyService = () => {
+  // redirect to service request page
+  window.location.href = "/services/request";
+};
 
   return (
     <PageWrapper>
@@ -222,65 +236,77 @@ function ServiceDashboard() {
                   : "Activate"}
               </button>
             )}
-
-            {/* ================= EDIT ================= */}
-            {editingService === service.id ? (
-              <div className="mt-4 space-y-2">
-                <textarea
-                  className="input"
-                  value={form.description}
-                  onChange={(e) =>
-                    setForm({ ...form, description: e.target.value })
-                  }
-                />
-
-                <input
-                  className="input"
-                  value={form.location}
-                  onChange={(e) =>
-                    setForm({ ...form, location: e.target.value })
-                  }
-                />
-
-                <input
-                  className="input"
-                  value={form.phone}
-                  onChange={(e) =>
-                    setForm({ ...form, phone: e.target.value })
-                  }
-                />
-
-                <input
-                  className="input"
-                  value={form.whatsapp}
-                  onChange={(e) =>
-                    setForm({ ...form, whatsapp: e.target.value })
-                  }
-                />
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => submitEdit(service.id)}
-                    className="bg-green-600 text-white px-4 py-2 rounded"
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={cancelEdit}
-                    className="bg-gray-300 px-4 py-2 rounded"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
+            {service.status === "rejected" && usedSlots < maxSlots && (
               <button
-                onClick={() => startEdit(service)}
-                className="mt-3 text-blue-600 underline text-sm"
+                onClick={reapplyService}
+                className="mt-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
               >
-                ✏️ Edit details
+                🔄 Reapply for Service
               </button>
             )}
+
+            {/* ================= EDIT ================= */}
+{/* ================= EDIT ================= */}
+{editingService === service.id ? (
+  <div className="mt-4 space-y-2">
+    <textarea
+      className="input"
+      value={form.description}
+      onChange={(e) =>
+        setForm({ ...form, description: e.target.value })
+      }
+    />
+
+    <input
+      className="input"
+      value={form.location}
+      onChange={(e) =>
+        setForm({ ...form, location: e.target.value })
+      }
+    />
+
+    <input
+      className="input"
+      value={form.phone}
+      onChange={(e) =>
+        setForm({ ...form, phone: e.target.value })
+      }
+    />
+
+    <input
+      className="input"
+      value={form.whatsapp}
+      onChange={(e) =>
+        setForm({ ...form, whatsapp: e.target.value })
+      }
+    />
+
+    <div className="flex gap-2">
+      <button
+        onClick={() => submitEdit(service.id)}
+        className="bg-green-600 text-white px-4 py-2 rounded"
+      >
+        Save
+      </button>
+      <button
+        onClick={cancelEdit}
+        className="bg-gray-300 px-4 py-2 rounded"
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+) : (
+  service.status !== "rejected" && (
+    <button
+      onClick={() => startEdit(service)}
+      className="mt-3 text-blue-600 underline text-sm"
+    >
+      ✏️ Edit details
+    </button>
+  )
+)}
+
 
             {/* ================= IMAGES ================= */}
             <div className="mt-4">
