@@ -1,28 +1,34 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import PageWrapper from "../components/PageWrapper";
 import { LOCATIONS } from "../utils/locations";
 import { SERVICES } from "../utils/services";
-const [usage, setUsage] = useState({ used: 0, max: 2 });
-
-useEffect(() => {
-  const loadUsage = async () => {
-    try {
-      const res = await api.get("/services/usage");
-      setUsage(res.data);
-    } catch (err) {
-      console.error("Failed to load service usage", err);
-    }
-  };
-
-  loadUsage();
-}, []);
-
 
 function RequestServiceProvider() {
   const navigate = useNavigate();
 
+  /* ===============================
+     SERVICE USAGE (NEW – SAFE)
+  =============================== */
+  const [usage, setUsage] = useState({ used: 0, max: 2 });
+
+  useEffect(() => {
+    const loadUsage = async () => {
+      try {
+        const res = await api.get("/services/usage");
+        setUsage(res.data);
+      } catch (err) {
+        console.error("Failed to load service usage", err);
+      }
+    };
+
+    loadUsage();
+  }, []);
+
+  /* ===============================
+     FORM STATE (UNCHANGED)
+  =============================== */
   const [services, setServices] = useState([
     {
       category: "",
@@ -41,21 +47,20 @@ function RequestServiceProvider() {
      HELPERS
   =============================== */
   const addService = () => {
-  if (usage.used + services.length >= usage.max) return;
+    if (usage.used + services.length >= usage.max) return;
 
-  setServices([
-    ...services,
-    {
-      category: "",
-      description: "",
-      location: "",
-      phone: "",
-      whatsapp: "",
-      images: [],
-    },
-  ]);
-};
-
+    setServices([
+      ...services,
+      {
+        category: "",
+        description: "",
+        location: "",
+        phone: "",
+        whatsapp: "",
+        images: [],
+      },
+    ]);
+  };
 
   const updateService = (index, field, value) => {
     const copy = [...services];
@@ -70,7 +75,6 @@ function RequestServiceProvider() {
     e.preventDefault();
     setError("");
 
-    // ✅ Validation
     if (
       services.some(
         (s) => !s.category || !s.description || !s.location
@@ -82,18 +86,18 @@ function RequestServiceProvider() {
     if (services.some((s) => s.images.length === 0)) {
       return setError("Each service must have at least one image");
     }
+
     if (usage.used + services.length > usage.max) {
-  return setError(
-    `You have reached the maximum of ${usage.max} services allowed`
-  );
-}
+      return setError(
+        `You have reached the maximum of ${usage.max} services allowed`
+      );
+    }
 
     setLoading(true);
 
     try {
       const formData = new FormData();
 
-      // 1️⃣ Services JSON
       formData.append(
         "services",
         JSON.stringify(
@@ -101,7 +105,6 @@ function RequestServiceProvider() {
         )
       );
 
-      // 2️⃣ Images (MUST MATCH BACKEND FIELD NAMES)
       services.forEach((service, index) => {
         service.images.forEach((img) => {
           formData.append(
@@ -111,16 +114,11 @@ function RequestServiceProvider() {
         });
       });
 
-      // 3️⃣ Submit single request
       await api.post("/services/request", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
-      // 4️⃣ Success
       navigate("/my-services", { replace: true });
-
     } catch (err) {
       setError(
         err.response?.data?.error ||
@@ -146,15 +144,11 @@ function RequestServiceProvider() {
         className="space-y-6 max-w-xl"
       >
         {services.map((s, i) => (
-          <div
-            key={i}
-            className="border p-4 rounded"
-          >
+          <div key={i} className="border p-4 rounded">
             <h3 className="font-semibold mb-2">
               Service {i + 1}
             </h3>
 
-            {/* CATEGORY */}
             <select
               className="input"
               value={s.category}
@@ -170,7 +164,6 @@ function RequestServiceProvider() {
               ))}
             </select>
 
-            {/* DESCRIPTION */}
             <textarea
               className="input mt-2"
               placeholder="Describe your service"
@@ -180,7 +173,6 @@ function RequestServiceProvider() {
               }
             />
 
-            {/* LOCATION */}
             <select
               className="input mt-2"
               value={s.location}
@@ -196,7 +188,6 @@ function RequestServiceProvider() {
               ))}
             </select>
 
-            {/* CONTACT */}
             <input
               className="input mt-2"
               placeholder="Phone"
@@ -215,7 +206,6 @@ function RequestServiceProvider() {
               }
             />
 
-            {/* IMAGES */}
             <input
               type="file"
               multiple
@@ -223,13 +213,11 @@ function RequestServiceProvider() {
               className="mt-3"
               onChange={(e) => {
                 const files = Array.from(e.target.files);
-
                 if (files.length > 5) {
                   alert("Maximum of 5 images allowed");
                   e.target.value = null;
                   return;
                 }
-
                 updateService(i, "images", files);
               }}
             />
@@ -240,7 +228,7 @@ function RequestServiceProvider() {
           </div>
         ))}
 
-        {services.length < 2 && (
+        {usage.used + services.length < usage.max && (
           <button
             type="button"
             onClick={addService}
@@ -250,10 +238,7 @@ function RequestServiceProvider() {
           </button>
         )}
 
-        <button
-          disabled={loading}
-          className="btn-primary"
-        >
+        <button disabled={loading} className="btn-primary">
           {loading ? "Submitting..." : "Submit Request"}
         </button>
       </form>
