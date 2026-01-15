@@ -306,4 +306,14 @@ router.patch(
   }
 );
 
+router.patch(
+  "/:id/reject",
+  auth,
+  roles("admin"),
+  async (req, res) => {
+    // forward to the new handler
+    req.url = `/services/${req.params.id}/reject`;
+    router.handle(req, res);
+  }
+);
 module.exports = router;
