@@ -125,6 +125,9 @@ router.post("/login", async (req, res) => {
   }
 });
 
+/**
+ * VERIFICATION (RESEND VERIFICATION EMAIL)
+ */
 router.post("/resend-verification", async (req, res) => {
   try {
     const { email } = req.body;
@@ -156,6 +159,7 @@ router.post("/resend-verification", async (req, res) => {
     const token =
       user.email_verification_token ||
       crypto.randomBytes(32).toString("hex");
+
 
     await pool.query(
       `
