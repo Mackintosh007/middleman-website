@@ -46,6 +46,34 @@ router.post(
           });
         }
       }
+            // ✅ enforce max 5 images per service slot
+      for (let i = 1; i <= parsedServices.length; i++) {
+        const imgs = req.files.filter(
+          f => f.fieldname === `service_${i}_images`
+        );
+        if (imgs.length > 5) {
+          return res.status(400).json({
+            error: "Maximum of 5 images allowed per service"
+          });
+        }
+      }
+
+      // 🔒 CHECK SERVICE SLOT USAGE (IGNORE REJECTED)
+      const usageRes = await pool.query(
+        `
+        SELECT COUNT(*)::int AS used
+        FROM services
+        WHERE user_id = $1
+          AND status IN ('pending', 'active')
+        `,
+        [req.user.id]
+      );
+
+      if (usageRes.rows[0].used + parsedServices.length > 2) {
+        return res.status(400).json({
+          error: "You have used your maximum service slots"
+        });
+      }
 
       await client.query("BEGIN");
 
