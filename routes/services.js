@@ -107,17 +107,27 @@ router.post(
       for (let i = 0; i < parsedServices.length; i++) {
         const svc = parsedServices[i];
 
-        // 🔐 get next available service slot (prevents collision after rejection)
+// 🔐 find first free slot (1 or 2) ignoring rejected services
         const slotRes = await client.query(
           `
-          SELECT COALESCE(MAX(service_slot), 0) + 1 AS next_slot
-          FROM services
-          WHERE user_id = $1
+          SELECT MIN(s) AS next_slot
+          FROM generate_series(1, 2) s
+          WHERE s NOT IN (
+            SELECT service_slot
+            FROM services
+            WHERE user_id = $1
+              AND status IN ('pending', 'active')
+          )
           `,
           [req.user.id]
         );
 
         const serviceSlot = slotRes.rows[0].next_slot;
+
+        if (!serviceSlot) {
+          throw new Error("No available service slots");
+        }
+        
 
 
         const svcRes = await client.query(
