@@ -171,8 +171,7 @@ function ServiceDashboard() {
    REAPPLY SERVICE
 =============================== */
 const reapplyService = () => {
-  // navigate cleanly to service request form (no service id)
-  window.location.href = "/dashboard/services/request";
+  window.location.href = "/service-requests";
 };
 
 

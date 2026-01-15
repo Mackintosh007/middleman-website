@@ -4,6 +4,21 @@ import api from "../api/axios";
 import PageWrapper from "../components/PageWrapper";
 import { LOCATIONS } from "../utils/locations";
 import { SERVICES } from "../utils/services";
+const [usage, setUsage] = useState({ used: 0, max: 2 });
+
+useEffect(() => {
+  const loadUsage = async () => {
+    try {
+      const res = await api.get("/services/usage");
+      setUsage(res.data);
+    } catch (err) {
+      console.error("Failed to load service usage", err);
+    }
+  };
+
+  loadUsage();
+}, []);
+
 
 function RequestServiceProvider() {
   const navigate = useNavigate();
@@ -26,20 +41,21 @@ function RequestServiceProvider() {
      HELPERS
   =============================== */
   const addService = () => {
-    if (services.length >= 2) return;
+  if (usage.used + services.length >= usage.max) return;
 
-    setServices([
-      ...services,
-      {
-        category: "",
-        description: "",
-        location: "",
-        phone: "",
-        whatsapp: "",
-        images: [],
-      },
-    ]);
-  };
+  setServices([
+    ...services,
+    {
+      category: "",
+      description: "",
+      location: "",
+      phone: "",
+      whatsapp: "",
+      images: [],
+    },
+  ]);
+};
+
 
   const updateService = (index, field, value) => {
     const copy = [...services];
@@ -66,6 +82,11 @@ function RequestServiceProvider() {
     if (services.some((s) => s.images.length === 0)) {
       return setError("Each service must have at least one image");
     }
+    if (usage.used + services.length > usage.max) {
+  return setError(
+    `You have reached the maximum of ${usage.max} services allowed`
+  );
+}
 
     setLoading(true);
 
