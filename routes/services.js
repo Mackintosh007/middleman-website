@@ -279,13 +279,45 @@ router.get("/", async (req, res) => {
 });
 
 /* ======================================================
+   🔐 USER: SERVICE SLOT USAGE
+   GET /api/services/usage
+====================================================== */
+router.get("/usage", auth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `
+      SELECT COUNT(*)::int AS used
+      FROM services
+      WHERE user_id = $1
+        AND status IN ('pending', 'active')
+      `,
+      [req.user.id]
+    );
+
+    res.json({
+      used: result.rows[0].used,
+      max: 2
+    });
+  } catch (err) {
+    console.error("SERVICE USAGE ERROR:", err);
+    res.status(500).json({ error: "Failed to load service usage" });
+  }
+});
+
+
+/* ======================================================
    PUBLIC: SINGLE SERVICE
    GET /api/services/:id
 ====================================================== */
 router.get("/:id", async (req, res) => {
-  try {
-    const serviceId = req.params.id;
+  const serviceId = Number(req.params.id);
 
+  // 🔒 prevent /usage, /request, etc. from reaching Postgres
+  if (!Number.isInteger(serviceId)) {
+    return res.status(400).json({ error: "Invalid service ID" });
+  }
+
+  try {
     const serviceRes = await pool.query(
       `
       SELECT s.*, u.first_name, u.email
@@ -295,26 +327,22 @@ router.get("/:id", async (req, res) => {
       `,
       [serviceId]
     );
-
-    if (!serviceRes.rows.length) {
-      return res.status(404).json({ error: "Service not found" });
-    }
-
+    
     const imagesRes = await pool.query(
-      `SELECT image_url FROM service_images WHERE service_id = $1`,
-      [serviceId]
-    );
+  `SELECT image_url FROM service_images WHERE service_id = $1`,
+  [serviceId]
+);
 
-    const ratingRes = await pool.query(
-      `
-      SELECT
-        COUNT(*)::int AS total_reviews,
-        ROUND(AVG(rating), 1) AS average_rating
-      FROM service_reviews
-      WHERE service_id = $1
-      `,
-      [serviceId]
-    );
+const ratingRes = await pool.query(
+  `
+  SELECT
+    COUNT(*)::int AS total_reviews,
+    ROUND(AVG(rating), 1) AS average_rating
+  FROM service_reviews
+  WHERE service_id = $1
+  `,
+  [serviceId]
+);
 
     res.json({
       ...serviceRes.rows[0],
@@ -494,32 +522,6 @@ router.patch(
     }
   }
 );
-
-/* ======================================================
-   🔐 USER: SERVICE SLOT USAGE
-   GET /api/services/usage
-====================================================== */
-router.get("/usage", auth, async (req, res) => {
-  try {
-    const result = await pool.query(
-      `
-      SELECT COUNT(*)::int AS used
-      FROM services
-      WHERE user_id = $1
-        AND status IN ('pending', 'active')
-      `,
-      [req.user.id]
-    );
-
-    res.json({
-      used: result.rows[0].used,
-      max: 2
-    });
-  } catch (err) {
-    console.error("SERVICE USAGE ERROR:", err);
-    res.status(500).json({ error: "Failed to load service usage" });
-  }
-});
 
 
 module.exports = router;
