@@ -50,7 +50,7 @@ export function AuthProvider({ children }) {
       id: res.data.user.id,
       email: res.data.user.email,
       role: res.data.user.role,
-      verified: res.data.user.verified,
+      verified: res.data.user.email_verified,
     });
 
     return true;
