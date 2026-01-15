@@ -306,14 +306,85 @@ router.patch(
   }
 );
 
+/**
+ * ==================================================
+ * ADMIN: REJECT SERVICE (BACKWARD COMPATIBLE)
+ * PATCH /api/service-requests/:id/reject
+ * ==================================================
+ */
 router.patch(
   "/:id/reject",
   auth,
   roles("admin"),
   async (req, res) => {
-    // forward to the new handler
-    req.url = `/services/${req.params.id}/reject`;
-    router.handle(req, res);
+    const client = await pool.connect();
+
+    try {
+      const serviceId = req.params.id;
+
+      await client.query("BEGIN");
+
+      const serviceRes = await client.query(
+        `
+        SELECT id, service_request_id
+        FROM services
+        WHERE id = $1 AND status = 'pending'
+        FOR UPDATE
+        `,
+        [serviceId]
+      );
+
+      if (!serviceRes.rows.length) {
+        return res
+          .status(400)
+          .json({ error: "Service not found or already processed" });
+      }
+
+      const { service_request_id } = serviceRes.rows[0];
+
+      await client.query(
+        `
+        UPDATE services
+        SET status = 'rejected'
+        WHERE id = $1
+        `,
+        [serviceId]
+      );
+
+      // If no pending services remain, close the request
+      const pendingCheck = await client.query(
+        `
+        SELECT 1
+        FROM services
+        WHERE service_request_id = $1
+          AND status = 'pending'
+        LIMIT 1
+        `,
+        [service_request_id]
+      );
+
+      if (pendingCheck.rows.length === 0) {
+        await client.query(
+          `
+          UPDATE service_requests
+          SET status = 'completed'
+          WHERE id = $1
+          `,
+          [service_request_id]
+        );
+      }
+
+      await client.query("COMMIT");
+
+      res.json({ success: true });
+    } catch (err) {
+      await client.query("ROLLBACK");
+      console.error("REJECT SERVICE (LEGACY) ERROR:", err);
+      res.status(500).json({ error: err.message });
+    } finally {
+      client.release();
+    }
   }
 );
+
 module.exports = router;
