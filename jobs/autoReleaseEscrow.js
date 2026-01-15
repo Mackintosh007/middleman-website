@@ -6,14 +6,13 @@ const pool = require("../db");
  */
 async function autoReleaseEscrow() {
   try {
-    const result = await pool.query(
-      `
-      SELECT id, buyer_id, seller_id, amount
-      FROM orders
-      WHERE status = 'delivered'
-        AND delivered_at < NOW() - INTERVAL '48 hours'
-      `
-    );
+    const result = await pool.query(`
+  SELECT id, seller_id, amount
+  FROM orders
+  WHERE status = 'delivered'
+    AND updated_at < NOW() - INTERVAL '48 hours'
+`);
+
 
     for (const order of result.rows) {
       await pool.query("BEGIN");
