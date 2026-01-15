@@ -34,8 +34,8 @@ router.post("/register", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const verificationToken = crypto.randomBytes(32).toString("hex");
-    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const emailverificationToken = crypto.randomBytes(32).toString("hex");
+    const emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     await pool.query(
       `INSERT INTO users
@@ -52,11 +52,11 @@ router.post("/register", async (req, res) => {
         location,
         dob,
         emailverificationToken,
-        verificationExpires
+        emailVerificationExpires
       ]
     );
 
-    const verifyUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+    const verifyUrl = `${process.env.FRONTEND_URL}/verify-email?token=${emailverificationToken}`;
 
     await sendEmail({
       to: email,
@@ -125,12 +125,6 @@ router.post("/login", async (req, res) => {
   }
 });
 
-/**
- * ======================================================
- * RESEND EMAIL VERIFICATION
- * POST /api/auth/resend-verification
- * ======================================================
- */
 router.post("/resend-verification", async (req, res) => {
   try {
     const { email } = req.body;
@@ -141,54 +135,58 @@ router.post("/resend-verification", async (req, res) => {
 
     const userRes = await pool.query(
       `
-      SELECT id, email, verified, verification_token
+      SELECT id, email, email_verified, email_verification_token
       FROM users
       WHERE email = $1
       `,
       [email]
     );
 
+    // Silent success (prevents email enumeration)
     if (!userRes.rows.length) {
-      return res.status(404).json({ error: "User not found" });
+      return res.json({ success: true });
     }
 
     const user = userRes.rows[0];
 
-    if (user.verified) {
-      return res.status(400).json({
-        error: "Account is already verified"
-      });
+    if (user.email_verified) {
+      return res.json({ success: true });
     }
 
-    // 🔁 Reuse existing token or generate new one
     const token =
       user.email_verification_token ||
-      require("crypto").randomBytes(32).toString("hex");
+      crypto.randomBytes(32).toString("hex");
 
     await pool.query(
       `
       UPDATE users
-      SET email_verification_token = $1
+      SET email_verification_token = $1,
+          email_verification_expires = NOW() + INTERVAL '24 hours'
       WHERE id = $2
       `,
       [token, user.id]
     );
 
-    // 📧 SEND EMAIL (reuse your existing mailer)
-    await sendVerificationEmail(user.email, token);
+    const verifyUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
 
-    res.json({
-      success: true,
-      message: "Verification email resent"
+    await sendEmail({
+      to: user.email,
+      subject: "Verify your Middleman account",
+      html: `
+        <p>Please verify your email to continue:</p>
+        <a href="${verifyUrl}">${verifyUrl}</a>
+        <p>This link expires in 24 hours.</p>
+      `
     });
+
+    res.json({ success: true });
 
   } catch (err) {
     console.error("RESEND VERIFICATION ERROR:", err);
-    res.status(500).json({
-      error: "Failed to resend verification email"
-    });
+    res.status(500).json({ error: "Failed to resend verification email" });
   }
 });
+
 
 
 /**
