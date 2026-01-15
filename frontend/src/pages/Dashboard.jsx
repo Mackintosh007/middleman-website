@@ -31,16 +31,17 @@ function Dashboard() {
      (READ-ONLY, SAFE)
   =============================== */
   useEffect(() => {
-    api
-      .get("/services/mine")
-      .then(res => {
-        if (Array.isArray(res.data)) {
-          setServicesCount(res.data.length);
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoadingServices(false));
-  }, []);
+  api
+    .get("/services/usage")
+    .then(res => {
+      if (res.data && typeof res.data.used === "number") {
+        setServicesCount(res.data.used);
+      }
+    })
+    .catch(() => {})
+    .finally(() => setLoadingServices(false));
+}, []);
+
   /* ===============================
    LOAD PENDING ACTIONS
    (SAFE, READ-ONLY)
