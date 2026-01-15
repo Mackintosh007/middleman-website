@@ -51,7 +51,7 @@ router.post("/register", async (req, res) => {
         phone_number,
         location,
         dob,
-        verificationToken,
+        emailverificationToken,
         verificationExpires
       ]
     );
@@ -162,13 +162,13 @@ router.post("/resend-verification", async (req, res) => {
 
     // 🔁 Reuse existing token or generate new one
     const token =
-      user.verification_token ||
+      user.email_verification_token ||
       require("crypto").randomBytes(32).toString("hex");
 
     await pool.query(
       `
       UPDATE users
-      SET verification_token = $1
+      SET email_verification_token = $1
       WHERE id = $2
       `,
       [token, user.id]
