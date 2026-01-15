@@ -125,6 +125,12 @@ function AdminDashboard() {
             value={`₦${Number(revenue.escrow.total_volume).toLocaleString()}`}
             link="/admin/orders"
           />
+          <StatCard
+            label="📦 Pending Deliveries"
+            value={stats.orders}
+            link="/admin/pending-deliveries"
+          />
+
         </div>
       )}
 

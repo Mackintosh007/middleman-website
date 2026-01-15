@@ -402,4 +402,56 @@ router.get("/pending-actions", auth, async (req, res) => {
   }
 });
 
+/**
+ * ===============================
+ * ADMIN: PAID BUT NOT DELIVERED
+ * ===============================
+ */
+router.get("/admin/pending-delivery", auth, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    const result = await pool.query(
+      `
+      SELECT
+        o.id AS order_id,
+        o.amount,
+        o.created_at,
+
+        -- item
+        p.title,
+        p.property_type,
+        p.location,
+
+        -- buyer
+        buyer.first_name AS buyer_first_name,
+        buyer.last_name AS buyer_last_name,
+        buyer.phone_number AS buyer_phone,
+
+        -- seller
+        seller.first_name AS seller_first_name,
+        seller.last_name AS seller_last_name,
+        seller.phone_number AS seller_phone
+
+      FROM orders o
+      JOIN properties p ON p.id = o.property_id
+      JOIN users buyer ON buyer.id = o.buyer_id
+      JOIN users seller ON seller.id = o.seller_id
+
+      WHERE o.status = 'paid'
+        AND o.delivery_confirmed = false
+
+      ORDER BY o.created_at ASC
+      `
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("ADMIN PENDING DELIVERY ERROR:", err);
+    res.status(500).json({ error: "Failed to load pending deliveries" });
+  }
+});
+
 module.exports = router;

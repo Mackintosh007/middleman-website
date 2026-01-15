@@ -48,6 +48,8 @@ import AdminUsers from "./pages/AdminUsers";
 import AdminSellerRequests from "./pages/AdminSellerRequests";
 import AdminListings from "./pages/AdminListings";
 import AdminAuditLogs from "./pages/AdminAuditLogs";
+import AdminPendingDeliveries from "./pages/AdminPendingDeliveries";
+
 /* SERVICES */
 import Services from "./pages/Services";
 import ServiceDetails from "./pages/ServiceDetails";
@@ -259,6 +261,15 @@ function App() {
           element={
             <ProtectedRoute role="admin">
               <AdminServices />
+            </ProtectedRoute>
+          }
+        />
+        
+        <Route
+          path="/admin/pending-deliveries"
+          element={
+            <ProtectedRoute role="admin">
+              <AdminPendingDeliveries />
             </ProtectedRoute>
           }
         />
