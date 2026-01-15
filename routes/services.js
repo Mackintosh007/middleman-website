@@ -74,6 +74,22 @@ router.post(
           error: "You have used your maximum service slots"
         });
       }
+      
+      const pendingReq = await pool.query(
+        `
+        SELECT 1
+        FROM service_requests
+        WHERE user_id = $1 AND status = 'pending'
+        LIMIT 1
+        `,
+        [req.user.id]
+      );
+
+      if (pendingReq.rows.length > 0) {
+        return res.status(400).json({
+          error: "You already have a pending service request"
+        });
+      }
 
       await client.query("BEGIN");
 
@@ -91,6 +107,19 @@ router.post(
       for (let i = 0; i < parsedServices.length; i++) {
         const svc = parsedServices[i];
 
+        // 🔐 get next available service slot (prevents collision after rejection)
+        const slotRes = await client.query(
+          `
+          SELECT COALESCE(MAX(service_slot), 0) + 1 AS next_slot
+          FROM services
+          WHERE user_id = $1
+          `,
+          [req.user.id]
+        );
+
+        const serviceSlot = slotRes.rows[0].next_slot;
+
+
         const svcRes = await client.query(
           `
           INSERT INTO services
@@ -101,7 +130,7 @@ router.post(
           [
             serviceRequestId,
             req.user.id,
-            i + 1,
+            serviceSlot,
             svc.category,
             svc.description,
             svc.location,
