@@ -17,6 +17,7 @@ function CreateListing() {
   });
 
   const [images, setImages] = useState([]);
+  const [video, setVideo] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -67,6 +68,10 @@ function CreateListing() {
       images.forEach((file) => {
         formData.append("images", file);
       });
+      // 🎞 OPTIONAL VIDEO
+      if (video) {
+        formData.append("video", video);
+      }
 
       // ✅ SINGLE ATOMIC REQUEST
       await api.post("/properties", formData, {
@@ -184,12 +189,30 @@ function CreateListing() {
           required
         />
 
+        {/* 🎞 OPTIONAL VIDEO (COMMISSION ONLY) */}
+        {!["gadget","equipment","fashion","furniture","building_materials"].includes(form.category) && (
+          <div>
+            <label className="block text-sm font-medium mt-3 mb-1">
+              Product Video (optional)
+            </label>
+            <input
+              type="file"
+              accept="video/mp4,video/webm"
+              onChange={(e) => setVideo(e.target.files[0])}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Optional · MP4/WebM · Commission listings only
+            </p>
+          </div>
+        )}
+
         <button
           disabled={loading}
           className="btn-primary"
         >
           {loading ? "Creating..." : "Create Listing"}
         </button>
+
       </form>
     </PageWrapper>
   );
