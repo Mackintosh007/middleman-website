@@ -122,6 +122,21 @@ function PropertyDetails() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
           {/* ================= IMAGE SECTION ================= */}
           <div>
+              {/* 🎞 VIDEO PREVIEW (COMMISSION ONLY) */}
+                {property.video && property.revenue_type === "commission" && (
+                  <div className="w-full bg-black rounded-lg overflow-hidden mb-4">
+                    <video
+                      controls
+                      playsInline
+                      preload="metadata"
+                      className="w-full max-h-96 object-contain"
+                    >
+                      <source src={property.video} type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                  </div>
+                )}
+
             <div className="w-full h-96 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
               <img
                 src={mainImage}

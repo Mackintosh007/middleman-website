@@ -6,6 +6,7 @@ const roles = require("../middleware/roles");
 const upload = require("../middleware/upload"); // ✅ ADD
 const cloudinary = require("../utils/cloudinary"); // ✅ ADD
 
+
 /**
  * CREATE PROPERTY (ATOMIC WITH IMAGES)
  */
@@ -13,7 +14,10 @@ router.post(
   "/",
   auth,
   roles("admin", "agent", "individual_seller"),
-  upload.array("images", 5), // ✅ ADD
+  upload.fields([
+  { name: "images", maxCount: 5 },
+  { name: "video", maxCount: 1 }
+]),
   async (req, res) => {
     const client = await pool.connect();
     const uploadedImages = [];
@@ -29,7 +33,7 @@ router.post(
       } = req.body;
 
       // 🔒 HARD BACKEND RULE
-      if (!req.files || req.files.length === 0) {
+      if (!req.files?.images || req.files.images.length === 0) {
         return res
           .status(400)
           .json({ error: "At least one image is required" });
@@ -48,19 +52,29 @@ router.post(
       ) {
         revenue_type = "escrow";
       }
+      
+      const hasVideo = req.files?.video?.length > 0;
+
+        // 🚫 Block video for escrow listings
+        if (hasVideo && revenue_type !== "commission") {
+          return res.status(400).json({
+            error: "Video uploads are only allowed for commission listings"
+          });
+        }
+
 
       if (condition && !["new", "used"].includes(condition)) {
         return res.status(400).json({ error: "Invalid condition" });
       }
 
       // Track uploaded images for cleanup if DB fails
-      req.files.forEach((file) => {
+      for (const file of req.files.images) {
         uploadedImages.push({
           url: file.path,
           public_id: file.filename
         });
-      });
-
+      }
+      
       await client.query("BEGIN");
 
       const result = await client.query(
@@ -92,29 +106,55 @@ router.post(
           [property.id, img.url]
         );
       }
+      
+      // ✅ Save video if present
+        if (req.files?.video?.length) {
+          const video = req.files.video[0];
+
+          await client.query(
+            `
+            INSERT INTO property_videos (property_id, video_url)
+            VALUES ($1, $2)
+            `,
+            [property.id, video.path]
+          );
+        }
+
 
       await client.query("COMMIT");
 
       res.status(201).json(property);
 
     } catch (err) {
-      await client.query("ROLLBACK");
+  await client.query("ROLLBACK");
 
-      // 🧹 CLEAN UP CLOUDINARY ON FAILURE
-      for (const img of uploadedImages) {
-        try {
-          await cloudinary.uploader.destroy(img.public_id);
-        } catch (cleanupErr) {
-          console.error("Cloudinary cleanup failed:", cleanupErr);
-        }
-      }
-
-      console.error("CREATE PROPERTY ERROR:", err);
-      res.status(500).json({ error: err.message });
-
-    } finally {
-      client.release();
+  // 🧹 CLEAN UP CLOUDINARY IMAGES ON FAILURE
+  for (const img of uploadedImages) {
+    try {
+      await cloudinary.uploader.destroy(img.public_id);
+    } catch (cleanupErr) {
+      console.error("Cloudinary cleanup failed:", cleanupErr);
     }
+  }
+
+  // 🧹 CLEAN UP CLOUDINARY VIDEO ON FAILURE (NEW)
+  if (req.files?.video?.length) {
+    try {
+      await cloudinary.uploader.destroy(req.files.video[0].filename, {
+        resource_type: "video"
+      });
+    } catch (e) {
+      console.error("Video cleanup failed:", e);
+    }
+  }
+
+  console.error("CREATE PROPERTY ERROR:", err);
+  res.status(500).json({ error: err.message });
+
+} finally {
+  client.release();
+}
+
   }
 );
 
@@ -148,6 +188,7 @@ router.get("/", async (req, res) => {
       `,
       [limit]
     );
+    
 
     res.json({ results: result.rows });
   } catch (err) {
@@ -181,9 +222,20 @@ router.get("/mine", auth, async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT * FROM properties WHERE id = $1",
+      `
+      SELECT p.*,
+        (
+          SELECT video_url
+          FROM property_videos
+          WHERE property_id = p.id
+          LIMIT 1
+        ) AS video
+      FROM properties p
+      WHERE p.id = $1
+      `,
       [req.params.id]
     );
+
 
     if (!result.rows.length) {
       return res.status(404).json({ error: "Property not found" });
@@ -400,6 +452,36 @@ router.delete(
       ) {
         return res.status(403).json({ error: "Unauthorized" });
       }
+
+      // 🧹 DELETE VIDEO FROM CLOUDINARY (IF EXISTS)
+      const videoRes = await pool.query(
+        `
+        SELECT video_url
+        FROM property_videos
+        WHERE property_id = $1
+        `,
+        [propertyId]
+      );
+
+      if (videoRes.rows.length && videoRes.rows[0].video_url) {
+        try {
+          const videoUrl = videoRes.rows[0].video_url;
+
+          // Extract Cloudinary public_id
+          const publicId = videoUrl
+            .split("/")
+            .slice(-2)
+            .join("/")
+            .replace(/\.[^/.]+$/, "");
+
+          await cloudinary.uploader.destroy(publicId, {
+            resource_type: "video"
+          });
+        } catch (err) {
+          console.error("Failed to delete video from Cloudinary:", err);
+        }
+      }
+
 
       await pool.query(
         "DELETE FROM properties WHERE id = $1",
