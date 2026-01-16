@@ -4,25 +4,32 @@ const cloudinary = require("../utils/cloudinary");
 
 const storage = new CloudinaryStorage({
   cloudinary,
-  params: {
-    folder: "middleman/services",
-    allowed_formats: ["jpg", "jpeg", "png", "webp"],
-    transformation: [{ width: 1200, crop: "limit" }],
+  params: async (req, file) => {
+    const isVideo = file.mimetype.startsWith("video/");
+
+    return {
+      folder: isVideo
+        ? "middleman/properties/videos"
+        : "middleman/properties/images",
+
+      resource_type: isVideo ? "video" : "image",
+
+      allowed_formats: isVideo
+        ? ["mp4", "webm"]
+        : ["jpg", "jpeg", "png", "webp"],
+
+      transformation: isVideo
+        ? undefined
+        : [{ width: 1200, crop: "limit" }],
+    };
   },
 });
 
-const uploadServiceImages = multer({
+const propertyUpload = multer({
   storage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB per image
-    files: 5,                 // ✅ MAX 5 IMAGES PER SERVICE
-  },
-  fileFilter: (req, file, cb) => {
-    if (!file.mimetype.startsWith("image/")) {
-      return cb(new Error("Only image files are allowed"), false);
-    }
-    cb(null, true);
+    fileSize: 50 * 1024 * 1024, // 50MB max (video-safe)
   },
 });
 
-module.exports = uploadServiceImages;
+module.exports = propertyUpload;
