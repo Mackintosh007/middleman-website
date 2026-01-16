@@ -3,7 +3,7 @@ const router = express.Router();
 const pool = require("../db");
 const auth = require("../middleware/auth");
 const roles = require("../middleware/roles");
-const upload = require("../middleware/propertyUpload");
+const upload = require("../middleware/upload"); // ✅ ADD
 const cloudinary = require("../utils/cloudinary"); // ✅ ADD
 
 
