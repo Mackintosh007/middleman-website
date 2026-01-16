@@ -326,8 +326,7 @@ router.patch(
           description = COALESCE($2, description),
           price = COALESCE($3, price),
           location = COALESCE($4, location),
-          condition = COALESCE($5, condition),
-          updated_at = NOW()
+          condition = COALESCE($5, condition)
         WHERE id = $6
         RETURNING *
         `,
