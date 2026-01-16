@@ -64,7 +64,7 @@ router.post("/register", async (req, res) => {
       subject: "Verify your Middleman account",
       html: `
         <h3>Welcome to Middleman</h3>
-        <p>Please verify your email to activate your account.</p>
+        <p>Please check your email to verify your account before login.</p>
         <a href="${verifyUrl}">Verify Email</a>
         <p>This link expires in 24 hours.</p>
       `
@@ -72,7 +72,7 @@ router.post("/register", async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Registration successful. Please check your email to verify your account."
+      message: "Registration successful. Please check your email to verify your account before login."
     });
   } catch (err) {
     console.error("REGISTER ERROR:", err);
