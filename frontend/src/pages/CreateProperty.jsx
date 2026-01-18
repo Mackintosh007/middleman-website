@@ -20,6 +20,8 @@ function CreateListing() {
   const [video, setVideo] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [uploadProgress, setUploadProgress] = useState(0);
+
 
   /* ===============================
      HANDLE INPUTS
@@ -29,8 +31,10 @@ function CreateListing() {
   };
 
   const handleImages = (e) => {
-    setImages(Array.from(e.target.files));
-  };
+      setImages(Array.from(e.target.files));
+      setUploadProgress(0);
+    };
+
 
   /* ===============================
      CREATE LISTING (ATOMIC)
@@ -50,6 +54,17 @@ function CreateListing() {
     if (images.length > 5) {
       return setError("Maximum of 5 images allowed");
     }
+    
+    // 📱 MOBILE SAFETY CHECKS
+      if (video && video.size > 150 * 1024 * 1024) {
+        return setError("Video too large. Max 150MB.");
+      }
+
+      for (const img of images) {
+        if (img.size > 10 * 1024 * 1024) {
+          return setError("Each image must be under 10MB.");
+        }
+      }
 
     setLoading(true);
 
@@ -75,7 +90,15 @@ function CreateListing() {
 
       // ✅ SINGLE ATOMIC REQUEST
       await api.post("/properties", formData, {
-        headers: { "Content-Type": "multipart/form-data" }
+        onUploadProgress: (progressEvent) => {
+          if (!progressEvent.total) return;
+
+          const percent = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
+
+          setUploadProgress(percent);
+        }
       });
 
       alert("Listing created successfully");
@@ -103,6 +126,23 @@ function CreateListing() {
           {error}
         </p>
       )}
+      
+      {uploadProgress > 0 && (
+        <div className="w-full mt-3">
+          <div className="flex justify-between text-xs mb-1">
+            <span>Uploading…</span>
+            <span>{uploadProgress}%</span>
+          </div>
+
+          <div className="w-full h-2 bg-gray-200 rounded overflow-hidden">
+            <div
+              className="h-full bg-blue-600 transition-all duration-200"
+              style={{ width: `${uploadProgress}%` }}
+            />
+          </div>
+        </div>
+      )}
+
 
       <form onSubmit={submit} className="space-y-4 max-w-lg">
 
@@ -197,9 +237,15 @@ function CreateListing() {
             </label>
             <input
               type="file"
-              accept="video/mp4,video/webm"
-              onChange={(e) => setVideo(e.target.files[0])}
+              accept="video/*"
+              capture
+              onChange={(e) => {
+                setVideo(e.target.files[0]);
+                setUploadProgress(0);
+              }}
+
             />
+
             <p className="text-xs text-gray-500 mt-1">
               Optional · MP4/WebM · Commission listings only
             </p>

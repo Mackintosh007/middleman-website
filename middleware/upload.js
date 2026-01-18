@@ -15,8 +15,8 @@ const storage = new CloudinaryStorage({
       resource_type: isVideo ? "video" : "image",
 
       allowed_formats: isVideo
-        ? ["mp4", "webm"]
-        : ["jpg", "jpeg", "png", "webp"],
+        ? ["mp4", "webm", "mov"]      // iPhone safe
+        : ["jpg", "jpeg", "png", "webp", "heic", "heif"],
 
       transformation: isVideo
         ? undefined
@@ -28,7 +28,7 @@ const storage = new CloudinaryStorage({
 const upload = multer({
   storage,
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB (safe for video)
+    fileSize: 200 * 1024 * 1024, // ✅ 200MB (mobile-safe)
   },
   fileFilter: (req, file, cb) => {
     if (
