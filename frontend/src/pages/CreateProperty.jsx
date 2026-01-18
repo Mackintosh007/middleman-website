@@ -237,14 +237,11 @@ function CreateListing() {
             </label>
             <input
               type="file"
-              accept="video/*"
-              capture
-              onChange={(e) => {
-                setVideo(e.target.files[0]);
-                setUploadProgress(0);
-              }}
-
+              accept="video/mp4,video/webm"
+              capture={false}     
+              onChange={(e) => setVideo(e.target.files[0])}
             />
+
 
             <p className="text-xs text-gray-500 mt-1">
               Optional · MP4/WebM · Commission listings only
