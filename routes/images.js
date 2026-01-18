@@ -3,6 +3,8 @@ const router = express.Router();
 const pool = require("../db");
 const auth = require("../middleware/auth");
 const upload = require("../middleware/upload");
+const cloudinary = require("../utils/cloudinary");
+
 
 /**
  * ===============================
@@ -144,5 +146,63 @@ router.delete("/:imageId", auth, async (req, res) => {
     res.status(500).json({ error: "Failed to delete image" });
   }
 });
+
+/**
+ * UPDATE IMAGE (REPLACE IMAGE FILE)
+ * PATCH /api/images/:id
+ */
+router.patch(
+  "/:id",
+  auth,
+  upload.single("image"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No image uploaded" });
+      }
+
+      // 1️⃣ Load existing image
+      const imgRes = await pool.query(
+        `SELECT image_url FROM property_images WHERE id = $1`,
+        [req.params.id]
+      );
+
+      if (!imgRes.rows.length) {
+        return res.status(404).json({ error: "Image not found" });
+      }
+
+      const oldUrl = imgRes.rows[0].image_url;
+
+      // 2️⃣ Delete old image from Cloudinary
+      try {
+        const publicId = oldUrl
+          .split("/")
+          .slice(-2)
+          .join("/")
+          .replace(/\.[^/.]+$/, "");
+
+        await cloudinary.uploader.destroy(publicId);
+      } catch (e) {
+        console.warn("Old image cleanup failed:", e.message);
+      }
+
+      // 3️⃣ Update DB with new image
+      const result = await pool.query(
+        `
+        UPDATE property_images
+        SET image_url = $1
+        WHERE id = $2
+        RETURNING *
+        `,
+        [req.file.path, req.params.id]
+      );
+
+      res.json(result.rows[0]);
+    } catch (err) {
+      console.error("UPDATE IMAGE ERROR:", err);
+      res.status(500).json({ error: "Failed to update image" });
+    }
+  }
+);
 
 module.exports = router;
