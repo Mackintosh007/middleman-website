@@ -56,16 +56,57 @@ router.post("/register", async (req, res) => {
       ]
     );
 
-    const verifyUrl = `${process.env.FRONTEND_URL}/verify-email?token=${emailverificationToken}`;
+    const verifyUrl = `https://middlemanng.com/verify?token=${verificationToken}`;
 
     await sendEmail({
       to: email,
       subject: "Verify your Middleman account",
       html: `
-        <p>Please verify your email to activate your account.</p>
-        <a href="${verifyUrl}">${verifyUrl}</a>
+        <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+          <h2>Verify your email</h2>
+
+          <p>Thanks for signing up on Middleman.</p>
+
+          <p>Please click the button below to verify your email address:</p>
+
+          <p style="margin: 20px 0;">
+            <a
+              href="${verifyUrl}"
+              style="
+                display: inline-block;
+                padding: 12px 20px;
+                background-color: #2563eb;
+                color: #ffffff;
+                text-decoration: none;
+                border-radius: 6px;
+                font-weight: bold;
+              "
+            >
+              Verify Email
+            </a>
+          </p>
+
+          <p>If the button does not work, copy and paste this link:</p>
+
+          <p style="word-break: break-all;">
+            <a href="${verifyUrl}">${verifyUrl}</a>
+          </p>
+
+          <p style="color:#666; font-size: 12px;">
+            If you didn’t create this account, you can safely ignore this email.
+          </p>
+        </div>
+      `,
+      text: `
+    Verify your Middleman account
+
+    Open this link in your browser:
+    ${verifyUrl}
+
+    If you didn’t create this account, ignore this message.
       `
     });
+
 
     res.status(201).json({
       success: true,
