@@ -35,7 +35,7 @@ function AdminServices() {
   const approveRequest = async (id) => {
     try {
       setActionLoading(id);
-      await api.patch(`/service-requests/${id}/approve`);
+      await api.patch(`/service-requests/services/${id}/approve`);
       setRequests((prev) =>
         prev.filter((r) => r.id !== id)
       );

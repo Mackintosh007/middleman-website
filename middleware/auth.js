@@ -9,7 +9,7 @@ module.exports = function (req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "No token provided" });
+    return res.status(401).json({ error: "You need to login before you make payment" });
   }
 
   const token = authHeader.split(" ")[1];

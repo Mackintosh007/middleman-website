@@ -39,7 +39,7 @@ function EscrowBuyButton({ property }) {
         disabled={loading}
         className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded font-semibold disabled:opacity-50"
       >
-        {loading ? "Redirecting..." : "Buy with Escrow"}
+        {loading ? "Redirecting..." : "Pay Now"}
       </button>
 
       {error && (
@@ -47,7 +47,7 @@ function EscrowBuyButton({ property }) {
       )}
 
       <p className="mt-2 text-xs text-gray-500">
-        Funds will be held securely until the transaction is completed.
+        Funds will be held securely until delivery is completed and confirmed.
       </p>
     </div>
   );
