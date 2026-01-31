@@ -345,19 +345,4 @@ router.get("/me", auth, async (req, res) => {
   res.json(result.rows[0]);
 });
 
-router.get("/test-resend", async (req, res) => {
-  try {
-    await sendEmail({
-      to: "odikamackintosh@gmail.com",
-      subject: "Resend Test – Middleman",
-      html: "<h1>Resend is working 🎉</h1>"
-    });
-
-    res.send("Email sent successfully");
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Email failed");
-  }
-});
-
 module.exports = router;

@@ -12,7 +12,8 @@ const transporter = nodemailer.createTransport({
 
 async function sendEmailSMTP({ to, subject, html, text }) {
   const info = await transporter.sendMail({
-    from: process.env.FROM_EMAIL,
+    // 🔥 MUST be the Gmail account itself
+    from: `Middleman <${process.env.SMTP_USER}>`,
     to,
     subject,
     html,
