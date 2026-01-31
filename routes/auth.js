@@ -264,14 +264,34 @@ router.post("/forgot-password", async (req, res) => {
 
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${rawToken}`;
 
-    await sendEmail({
-      to: email,
-      subject: "Reset your Middleman password",
-      html: `<a href="${resetUrl}">${resetUrl}</a>`
-    });
+    try {
+  await sendEmail({
+    to: email,
+    subject: "Reset your Middleman password",
+    html: `
+      <h2>Password Reset</h2>
+      <p>You requested a password reset on <strong>Middleman</strong>.</p>
+      <p>
+        <a href="${resetUrl}"
+           style="display:inline-block;padding:12px 18px;
+                  background:#2563eb;color:#fff;
+                  text-decoration:none;border-radius:6px;">
+          Reset Password
+        </a>
+      </p>
+      <p>This link expires in 1 hour.</p>
+    `,
+    text: `Reset your password: ${resetUrl}`
+  });
 
-    res.json({ success: true });
-  } catch (err) {
+  res.json({ success: true });
+} catch (emailErr) {
+  console.error("FORGOT PASSWORD EMAIL FAILED:", emailErr);
+  return res
+    .status(500)
+    .json({ error: "Failed to send reset email" });
+}
+} catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
@@ -323,6 +343,21 @@ router.get("/me", auth, async (req, res) => {
   );
 
   res.json(result.rows[0]);
+});
+
+router.get("/test-resend", async (req, res) => {
+  try {
+    await sendEmail({
+      to: "odikamackintosh@gmail.com",
+      subject: "Resend Test – Middleman",
+      html: "<h1>Resend is working 🎉</h1>"
+    });
+
+    res.send("Email sent successfully");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Email failed");
+  }
 });
 
 module.exports = router;
