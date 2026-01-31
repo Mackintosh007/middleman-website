@@ -345,4 +345,22 @@ router.get("/me", auth, async (req, res) => {
   res.json(result.rows[0]);
 });
 
+router.get("/test-smtp", async (req, res) => {
+  try {
+    const sendEmailSMTP = require("../utils/sendEmailSMTP");
+
+    await sendEmailSMTP({
+      to: "odikamackintosh@gmail.com",
+      subject: "SMTP Direct Test – Middleman",
+      html: "<h1>SMTP is working 🚀</h1>",
+      text: "SMTP is working"
+    });
+
+    res.send("SMTP email sent");
+  } catch (err) {
+    console.error("❌ SMTP TEST FAILED:", err);
+    res.status(500).send("SMTP failed");
+  }
+});
+
 module.exports = router;
