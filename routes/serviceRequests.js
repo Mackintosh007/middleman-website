@@ -185,7 +185,7 @@ router.patch(
       await client.query(
         `
         UPDATE services
-        SET status = 'approved'
+        SET status = 'active'
         WHERE id = $1
         `,
         [serviceId]
