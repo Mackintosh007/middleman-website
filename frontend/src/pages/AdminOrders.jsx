@@ -7,6 +7,18 @@ function AdminOrders() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
 
+  const openWhatsApp = (phone, message) => {
+  if (!phone) {
+    alert("Phone number not available");
+    return;
+  }
+
+  const clean = phone.replace(/\D/g, "");
+  const url = `https://wa.me/${clean}?text=${encodeURIComponent(message)}`;
+  window.open(url, "_blank");
+};
+
+
   useEffect(() => {
     loadOrders();
   }, []);
@@ -73,15 +85,40 @@ function AdminOrders() {
                 Status: <strong>{o.status}</strong>
               </p>
 
-              <div className="mt-3">
-                <button
-                  disabled={actionLoading === o.id}
-                  onClick={() => forceComplete(o.id)}
-                  className="px-3 py-1 bg-purple-600 text-white rounded disabled:opacity-50"
-                >
-                  Force Complete
-                </button>
-              </div>
+              <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                onClick={() =>
+                  openWhatsApp(
+                    o.seller_phone,
+                    `Hello, payment has been confirmed for "${o.title}". Please contact the buyer to arrange delivery.`
+                  )
+                }
+                className="bg-green-600 text-white px-3 py-1 rounded"
+              >
+                📲 WhatsApp Seller
+              </button>
+
+              <button
+                onClick={() =>
+                  openWhatsApp(
+                    o.buyer_phone,
+                    `Hello, your payment for "${o.title}" has been confirmed. The seller will contact you shortly.`
+                  )
+                }
+                className="bg-blue-600 text-white px-3 py-1 rounded"
+              >
+                📲 WhatsApp Buyer
+              </button>
+
+              <button
+                disabled={actionLoading === o.id}
+                onClick={() => forceComplete(o.id)}
+                className="bg-purple-600 text-white px-3 py-1 rounded disabled:opacity-50"
+              >
+                Force Complete
+              </button>
+            </div>
+
             </div>
           ))}
         </div>

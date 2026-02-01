@@ -3,6 +3,11 @@ import api from "../api/axios";
 import PageWrapper from "../components/PageWrapper";
 
 function AdminDashboard() {
+  const openWhatsApp = (phone, message) => {
+  const clean = phone.replace(/\D/g, "");
+  const url = `https://wa.me/${clean}?text=${encodeURIComponent(message)}`;
+  window.open(url, "_blank");
+};
   const [stats, setStats] = useState(null);
   const [revenue, setRevenue] = useState(null);
 
