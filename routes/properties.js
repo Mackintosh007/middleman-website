@@ -39,19 +39,25 @@ router.post(
           .json({ error: "At least one image is required" });
       }
 
+      // 🧠 Revenue type rules
+      const escrowCategories = [
+        "gadget",
+        "equipment",
+        "fashion",
+        "furniture",
+        "building_materials"
+      ];
+
       let revenue_type = "commission";
 
+      // 🔐 Escrow only applies if category is escrow-protected AND condition is NEW
       if (
-        [
-          "gadget",
-          "equipment",
-          "fashion",
-          "furniture",
-          "building_materials"
-        ].includes(property_type)
+        escrowCategories.includes(property_type) &&
+        condition === "new"
       ) {
         revenue_type = "escrow";
       }
+
       
       const hasVideo = req.files?.video?.length > 0;
 
